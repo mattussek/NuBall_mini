@@ -111,6 +111,7 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
    // The return value is currently not used.
    NuBall_eventbuilderR5::GetEntry(entry);
 
+
    if (label > MAX_LABEL) {
       printf("WARNING: Found label that exceeds limit (label%d) -> skipping event\n", label);
       return kTRUE;
@@ -131,6 +132,7 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
            coinc_Gemult++;
         }
         coinc_mult++;
+
    } else {
      dT = time - T0;
      if (dT < 0) {
@@ -150,7 +152,6 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
            coinc_GeLabel[coinc_Gemult] = label;
            coinc_Gemult++;
         }
-
         coinc_mult++;
         if (coinc_BGOmult >= MAX_ITEMS || coinc_Gemult >= MAX_ITEMS) {
            printf("WARNING: Event exceeds limit of data items per event. Ge:%d, BGO:%d\nstarting next event.\n", coinc_Gemult, coinc_BGOmult);
@@ -181,6 +182,7 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
            coinc_GeLabel[0] = label;
            coinc_Gemult++;
         }
+        coinc_mult++;
 
      }
    }
@@ -233,10 +235,10 @@ void NuBall_eventbuilderR5::printCurrBranch()
 {
    int i = 0;
    printf("+++Current Branch content %lld:\n", coinc_entry);
-   for (i=0; i<coinc_mult; i++) {
+   for (i=0; i<coinc_Gemult; i++) {
       printf("Ge:  label%d - energy%d - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
    }
-   for (i=0; i<coinc_mult; i++) {
+   for (i=0; i<coinc_BGOmult; i++) {
       printf("BGO:  label%d - energy%d - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
    }
    printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_BGOmult, coinc_Gemult);
@@ -259,12 +261,12 @@ void NuBall_eventbuilderR5::fillHistograms()
          ref_GeTime = coinc_GeTime[i];
          coinc_has_ref = 1;
       }
+   }
+
    for (i=0; i<coinc_BGOmult; i++) {
       hg->Fill(coinc_BGONrj[i], coinc_BGOLabel[i]);
    }
 
-
-   }
    for (i=0; i<coinc_Gemult; i++) {
       //increment gg matrix
       for (j=i+1; j<coinc_Gemult; j++) {
@@ -274,7 +276,7 @@ void NuBall_eventbuilderR5::fillHistograms()
          }
       }
    }
-   
+
    //make dt matrix rel to reference detector
    if (ref_pos > -1) {
       for (i=0; i<coinc_Gemult; i++) {
