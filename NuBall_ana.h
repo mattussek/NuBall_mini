@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Thu Sep 28 16:56:30 2017 by ROOT version 5.34/14
+// Tue Oct  3 17:24:04 2017 by ROOT version 6.10/02
 // from TTree coinc/NuBall coinc tree
-// found on file: out.root
+// found on file: 60Co_first_mini_nuball_0001.new.sample.root
 //////////////////////////////////////////////////////////
 
 #ifndef NuBall_ana_h
@@ -12,39 +12,49 @@
 #include <TChain.h>
 #include <TFile.h>
 #include <TSelector.h>
+#include <TTreeReader.h>
+#include <TTreeReaderValue.h>
+#include <TTreeReaderArray.h>
+#include <TH1.h>
 #include <TH2.h>
 
-// Header file for the classes stored in the TTree if any.
+// Headers needed by this particular selector
 
-// Fixed size dimensions of array or collections stored in the TTree if any.
 
 class NuBall_ana : public TSelector {
 public :
-   TTree          *fChain;   //!pointer to the analyzed TTree or TChain
+   TTreeReader     fReader;  //!the tree reader
+   TTree          *fChain = 0;   //!pointer to the analyzed TTree or TChain
 
-   // Declaration of leaf types
-   Long64_t        time[40];
-   Int_t           label[40];
-   Int_t           nrj[40];
-   Int_t           mult;
-   Int_t           mult_bgo;
-   Int_t           mult_ge;
-   Bool_t          has_ref;
+   // Readers to access the data (delete the ones you do not need).
+   TTreeReaderArray<Long64_t> GeTime = {fReader, "GeTime"};
+   TTreeReaderArray<Long64_t> BGOTime = {fReader, "BGOTime"};
+   TTreeReaderArray<Int_t> GeLabel = {fReader, "GeLabel"};
+   TTreeReaderArray<Int_t> BGOLabel = {fReader, "BGOLabel"};
+   TTreeReaderArray<Float_t> GeNrj = {fReader, "GeNrj"};
+   TTreeReaderArray<Float_t> BGONrj = {fReader, "BGONrj"};
+   TTreeReaderValue<Int_t> mult = {fReader, "mult"};
+   TTreeReaderValue<Int_t> mult_bgo = {fReader, "mult_bgo"};
+   TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
+   TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
 
-   // List of branches
-   TBranch        *b_time;   //!
-   TBranch        *b_label;   //!
-   TBranch        *b_nrj;   //!
-   TBranch        *b_mult;   //!
-   TBranch        *b_mult_bgo;   //!
-   TBranch        *b_mult_ge;   //!
-   TBranch        *b_has_ref;   //!
+   TH1F* Ge_sum;
+   TH1F* BGO_sum;
+   TH2F* Energy;
 
-///Histograms
-   TH2D *htd;
+   TH2F *dt1_BGO1_Ge;
+   TH2F *dt1_BGO2_Ge;
+   TH2F *dt2_BGO1_Ge;
+   TH2F *dt2_BGO2_Ge;
+   TH2F *dt3_BGO1_Ge;
+   TH2F *dt3_BGO2_Ge;
+   TH2F *dt4_BGO1_Ge;
+   TH2F *dt4_BGO2_Ge;
 
+   
+   TFile* OutFile;
 
-   NuBall_ana(TTree * /*tree*/ =0) : fChain(0) { }
+   NuBall_ana(TTree * /*tree*/ =0) { }
    virtual ~NuBall_ana() { }
    virtual Int_t   Version() const { return 2; }
    virtual void    Begin(TTree *tree);
@@ -60,7 +70,11 @@ public :
    virtual void    SlaveTerminate();
    virtual void    Terminate();
 
+   Bool_t IsBGO (int label);
+   void   dtBgoGe (int thisBgoLabel, float thisBgoEnergy, int thisGeLabel, float thisGeEnergy);
+
    ClassDef(NuBall_ana,0);
+
 };
 
 #endif
@@ -69,25 +83,13 @@ public :
 void NuBall_ana::Init(TTree *tree)
 {
    // The Init() function is called when the selector needs to initialize
-   // a new tree or chain. Typically here the branch addresses and branch
-   // pointers of the tree will be set.
+   // a new tree or chain. Typically here the reader is initialized.
    // It is normally not necessary to make changes to the generated
    // code, but the routine can be extended by the user if needed.
    // Init() will be called many times when running on PROOF
    // (once per file to be processed).
 
-   // Set branch addresses and branch pointers
-   if (!tree) return;
-   fChain = tree;
-   fChain->SetMakeClass(1);
-
-   fChain->SetBranchAddress("time", time, &b_time);
-   fChain->SetBranchAddress("label", label, &b_label);
-   fChain->SetBranchAddress("nrj", nrj, &b_nrj);
-   fChain->SetBranchAddress("mult", &mult, &b_mult);
-   fChain->SetBranchAddress("mult_bgo", &mult_bgo, &b_mult_bgo);
-   fChain->SetBranchAddress("mult_ge", &mult_ge, &b_mult_ge);
-   fChain->SetBranchAddress("has_ref", &has_ref, &b_has_ref);
+   fReader.SetTree(tree);
 }
 
 Bool_t NuBall_ana::Notify()
@@ -100,5 +102,23 @@ Bool_t NuBall_ana::Notify()
 
    return kTRUE;
 }
+
+Boot_t NuBall_ana::IsBGO(int this_label)
+{
+   if ( this_label == 6  ||
+        this_label == 7  ||
+        this_label == 14 ||
+        this_label == 15 ||
+        this_label == 20 ||
+        this_label == 21 ||
+        this_label == 26 ||
+        this_label == 27 ||
+   ) {
+      return 1;
+   }
+   return 0;
+}
+
+
 
 #endif // #ifdef NuBall_ana_cxx

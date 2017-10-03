@@ -58,9 +58,9 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    coinc_tree->Branch("GeLabel", &coinc_GeLabel, leafs);
    sprintf(leafs, "BGOLabel[%d]/I", MAX_ITEMS);
    coinc_tree->Branch("BGOLabel", &coinc_BGOLabel, leafs);
-   sprintf(leafs, "GeNrj[%d]/I", MAX_ITEMS);
+   sprintf(leafs, "GeNrj[%d]/F", MAX_ITEMS);
    coinc_tree->Branch("GeNrj", &coinc_GeNrj, leafs);
-   sprintf(leafs, "BGONrj[%d]/I", MAX_ITEMS);
+   sprintf(leafs, "BGONrj[%d]/F", MAX_ITEMS);
    coinc_tree->Branch("BGONrj", &coinc_BGONrj, leafs);
 
    coinc_tree->Branch("mult", &coinc_mult, "mult/I");
@@ -221,10 +221,10 @@ void NuBall_eventbuilderR5::printCoinc()
    int i = 0;
    printf("+++Found coincidence %lld:\n", nCoincidences);
    for (i=0; i<coinc_Gemult; i++) {
-      printf("Ge:  label%d - energy%d - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
    }
    for (i=0; i<coinc_BGOmult; i++) {
-      printf("Ge:  label%d - energy%d - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
    }
    printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_BGOmult, coinc_Gemult);
    printf("//\n");
@@ -236,10 +236,10 @@ void NuBall_eventbuilderR5::printCurrBranch()
    int i = 0;
    printf("+++Current Branch content %lld:\n", coinc_entry);
    for (i=0; i<coinc_Gemult; i++) {
-      printf("Ge:  label%d - energy%d - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
    }
    for (i=0; i<coinc_BGOmult; i++) {
-      printf("BGO:  label%d - energy%d - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
+      printf("BGO:  label%d - energy%f - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
    }
    printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_BGOmult, coinc_Gemult);
    printf("//\n");
