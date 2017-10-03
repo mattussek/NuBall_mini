@@ -58,9 +58,9 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    coinc_tree->Branch("GeLabel", &coinc_GeLabel, leafs);
    sprintf(leafs, "BGOLabel[%d]/I", MAX_ITEMS);
    coinc_tree->Branch("BGOLabel", &coinc_BGOLabel, leafs);
-   sprintf(leafs, "GeNrj[%d]/F", MAX_ITEMS);
+   sprintf(leafs, "GeNrj[%d]/D", MAX_ITEMS);
    coinc_tree->Branch("GeNrj", &coinc_GeNrj, leafs);
-   sprintf(leafs, "BGONrj[%d]/F", MAX_ITEMS);
+   sprintf(leafs, "BGONrj[%d]/D", MAX_ITEMS);
    coinc_tree->Branch("BGONrj", &coinc_BGONrj, leafs);
 
    coinc_tree->Branch("mult", &coinc_mult, "mult/I");
@@ -348,13 +348,13 @@ void NuBall_eventbuilderR5::readCalibration()
 }
 
 
-float  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
+double  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
 {
 	double ene;
 //	double random = ((double) rand()) / ((double) RAND_MAX *1);
 
 	ene = calParameters[this_label][0] + calParameters[this_label][1]*this_nrj;
-        return (float) ene;
+        return ene;
 }
 
 bool NuBall_eventbuilderR5::isBGO(int this_label)

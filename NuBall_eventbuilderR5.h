@@ -45,10 +45,10 @@ public :
 /////branches for coinc tree
    Long64_t coinc_GeTime [MAX_ITEMS];
    Int_t    coinc_GeLabel [MAX_ITEMS];
-   Float_t  coinc_GeNrj [MAX_ITEMS];
+   Double_t  coinc_GeNrj [MAX_ITEMS];
    Long64_t coinc_BGOTime [MAX_ITEMS];
    Int_t    coinc_BGOLabel [MAX_ITEMS];
-   Float_t  coinc_BGONrj [MAX_ITEMS];
+   Double_t  coinc_BGONrj [MAX_ITEMS];
    Int_t    coinc_mult;
    Int_t    coinc_Gemult;
    Int_t    coinc_BGOmult;
@@ -102,7 +102,7 @@ public :
    void  printCurrBranch();
    void  fillHistograms();
    void  readCalibration(); // initialses calParameters to 0
-   float nrjCal(int this_label, int this_nrj);
+   double nrjCal(int this_label, int this_nrj);
    bool  isBGO(int this_label);
 
    ClassDef(NuBall_eventbuilderR5,0);

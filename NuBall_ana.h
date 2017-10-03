@@ -8,6 +8,8 @@
 #ifndef NuBall_ana_h
 #define NuBall_ana_h
 
+#define MAX_ITEMS 20
+
 #include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
@@ -37,6 +39,8 @@ public :
    TTreeReaderValue<Int_t> mult_bgo = {fReader, "mult_bgo"};
    TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
    TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
+
+   Int_t veto[MAX_ITEMS];
 
    TH1F* Ge_sum;
    TH1F* BGO_sum;
@@ -70,9 +74,8 @@ public :
    virtual void    SlaveTerminate();
    virtual void    Terminate();
 
-   Bool_t IsBGO (int label);
-   void   dtBgoGe (int thisBgoLabel, float thisBgoEnergy, int thisGeLabel, float thisGeEnergy);
-
+   void   processBgoGe (int thisBgoLabel, float thisBgoEnergy, int thisGeLabel, float thisGeEnergy);
+   void   reset();
    ClassDef(NuBall_ana,0);
 
 };
@@ -102,23 +105,6 @@ Bool_t NuBall_ana::Notify()
 
    return kTRUE;
 }
-
-Boot_t NuBall_ana::IsBGO(int this_label)
-{
-   if ( this_label == 6  ||
-        this_label == 7  ||
-        this_label == 14 ||
-        this_label == 15 ||
-        this_label == 20 ||
-        this_label == 21 ||
-        this_label == 26 ||
-        this_label == 27 ||
-   ) {
-      return 1;
-   }
-   return 0;
-}
-
 
 
 #endif // #ifdef NuBall_ana_cxx
