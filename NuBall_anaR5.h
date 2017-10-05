@@ -10,6 +10,9 @@
 
 #define MAX_ITEMS 20
 #define HIST_MIN 3
+#define BGO_VETO_THRESH 10
+#define BGO_GE_WINDOW_LOW 40
+#define BGO_GE_WINDOW_HI  200
 
 #include <TROOT.h>
 #include <TChain.h>
@@ -55,8 +58,12 @@ public :
    TH1D* Ge_sum;
    TH1D* BGO_sum;
    TH2D* Energy;
-   TH2D* Ge_CompSup;
-   TH2D* Ge_BGOveto;
+   TH2D* Ge_CompSupSum;
+   TH2D* Ge_BGOvetoSum;
+   TH1D *Ge_CompSup[4];
+   TH1D *Ge_BGOveto[4];
+   TH1D *Ge_single[4];
+
    TH2D* GeBGO;
 
    TH2D *dt1_BGO1_Ge;
@@ -87,6 +94,7 @@ public :
    virtual void    Terminate();
 
    void   processBgoGe (int thisBgoCount, int thisGeCount);
+   void   BgoGeHist ( TH1D **thishist, int this_label, double energy );
    void   reset();
 
    ClassDef(NuBall_anaR5,0);

@@ -297,7 +297,7 @@ void NuBall_eventbuilderR5::readCalibration()
 {
    	int this_label=0;
         int i;
-	float params[2];
+	double params[2];
 
 
 	int lnr=0;
@@ -324,7 +324,7 @@ void NuBall_eventbuilderR5::readCalibration()
 			{
 				continue; // ignore comment line (TODO add empty line)
 			}
-			if (sscanf(line, "%d\t%f\t%f",&this_label,&params[0], &params[1]) == 3) {
+			if (sscanf(line, "%d\t%lf\t%lf",&this_label,&params[0], &params[1]) == 3) {
 				if(label < MAX_LABEL)
 				{
 				   calParameters[this_label][0] = params[0];
@@ -350,24 +350,32 @@ void NuBall_eventbuilderR5::readCalibration()
 
 double  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
 {
-	double ene;
-//	double random = ((double) rand()) / ((double) RAND_MAX *1);
+	double ene, ene_tmp;
+	double random = ((double) rand()) / ((double) RAND_MAX*2);
 
-	ene = calParameters[this_label][0] + calParameters[this_label][1]*this_nrj;
+	ene_tmp = calParameters[this_label][0] + calParameters[this_label][1]*this_nrj;
+
+	if( (2*ene_tmp - (Int_t)(2*ene_tmp)) > (double) random)
+	{
+		ene = ene_tmp + 0.5;
+	}else{
+		ene = ene_tmp;
+	}
+
         return ene;
 }
 
 bool NuBall_eventbuilderR5::isBGO(int this_label)
 {
       if (
-         this_label == 6 || // these are the BGOs in the mini setup
-         this_label == 7 ||
+         this_label == 5 || // these are the BGOs in the mini setup
+         this_label == 6 ||
+         this_label == 13 ||
          this_label == 14 ||
-         this_label == 15 ||
+         this_label == 19 ||
          this_label == 20 ||
-         this_label == 21 ||
-         this_label == 26 ||
-         this_label == 27 
+         this_label == 25 ||
+         this_label == 26 
       ) {
          return 1;
       } else {

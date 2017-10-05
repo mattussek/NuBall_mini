@@ -1,14 +1,18 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Tue Oct  3 17:24:04 2017 by ROOT version 6.10/02
+// Wed Oct  4 16:14:50 2017 by ROOT version 6.10/02
 // from TTree coinc/NuBall coinc tree
-// found on file: 60Co_first_mini_nuball_0001.new.sample.root
+// found on file: out.root
 //////////////////////////////////////////////////////////
 
 #ifndef NuBall_ana_h
 #define NuBall_ana_h
 
 #define MAX_ITEMS 20
+#define HIST_MIN 3
+#define BGO_VETO_THRESH 1000
+#define BGO_GE_WINDOW_LOW 40
+#define BGO_GE_WINDOW_HI  200
 
 #include <TROOT.h>
 #include <TChain.h>
@@ -19,6 +23,7 @@
 #include <TTreeReaderArray.h>
 #include <TH1.h>
 #include <TH2.h>
+
 
 // Headers needed by this particular selector
 
@@ -33,28 +38,34 @@ public :
    TTreeReaderArray<Long64_t> BGOTime = {fReader, "BGOTime"};
    TTreeReaderArray<Int_t> GeLabel = {fReader, "GeLabel"};
    TTreeReaderArray<Int_t> BGOLabel = {fReader, "BGOLabel"};
-   TTreeReaderArray<Float_t> GeNrj = {fReader, "GeNrj"};
-   TTreeReaderArray<Float_t> BGONrj = {fReader, "BGONrj"};
+   TTreeReaderArray<Double_t> GeNrj = {fReader, "GeNrj"};
+   TTreeReaderArray<Double_t> BGONrj = {fReader, "BGONrj"};
    TTreeReaderValue<Int_t> mult = {fReader, "mult"};
    TTreeReaderValue<Int_t> mult_bgo = {fReader, "mult_bgo"};
    TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
    TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
 
-   Int_t veto[MAX_ITEMS];
+   Int_t BGOveto[MAX_ITEMS];
 
-   TH1F* Ge_sum;
-   TH1F* BGO_sum;
-   TH2F* Energy;
+   TH1D* Ge_sum;
+   TH1D* BGO_sum;
+   TH2D* Energy;
+   TH2D* Ge_CompSupSum;
+   TH2D* Ge_BGOvetoSum;
+   TH1D *Ge_CompSup[4];
+   TH1D *Ge_BGOveto[4];
+   TH1D *Ge_single[4];
 
-   TH2F *dt1_BGO1_Ge;
-   TH2F *dt1_BGO2_Ge;
-   TH2F *dt2_BGO1_Ge;
-   TH2F *dt2_BGO2_Ge;
-   TH2F *dt3_BGO1_Ge;
-   TH2F *dt3_BGO2_Ge;
-   TH2F *dt4_BGO1_Ge;
-   TH2F *dt4_BGO2_Ge;
+   TH2D* GeBGO;
 
+   TH2D *dt1_BGO1_Ge;
+   TH2D *dt1_BGO2_Ge;
+   TH2D *dt2_BGO1_Ge;
+   TH2D *dt2_BGO2_Ge;
+   TH2D *dt3_BGO1_Ge;
+   TH2D *dt3_BGO2_Ge;
+   TH2D *dt4_BGO1_Ge;
+   TH2D *dt4_BGO2_Ge;
    
    TFile* OutFile;
 
@@ -74,8 +85,11 @@ public :
    virtual void    SlaveTerminate();
    virtual void    Terminate();
 
-   void   processBgoGe (int thisBgoLabel, float thisBgoEnergy, int thisGeLabel, float thisGeEnergy);
+   void   processBgoGe (int thisBgoCount, int thisGeCount);
+   void   BgoGeHist ( TH1D **thishist, int this_label, double energy );
    void   reset();
+
+
    ClassDef(NuBall_ana,0);
 
 };

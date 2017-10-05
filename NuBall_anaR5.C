@@ -36,7 +36,9 @@ void NuBall_anaR5::Begin(TTree * /*tree*/)
 
    TString option = GetOption();
    char outname[200];
-   sprintf(outname, "anaout.root");
+   char histname[200];
+   int i;
+   sprintf(outname, "anaout_thr1000.root");
 //   printf("%s.ana.root", fReader.GetTree()->GetTitle());
    OutFile = new TFile(outname,"recreate");
    OutFile->cd();
@@ -44,19 +46,27 @@ void NuBall_anaR5::Begin(TTree * /*tree*/)
    Ge_sum = new TH1D("Ge_sum","Germanium Energy Sum",8000,0,4000);
    BGO_sum = new TH1D("BGO_sum","BGO Energy Sum",8000,0,4000);
    Energy = new TH2D("Energy","Energy Singles",8000,0,4000,50,0,50);
-   Ge_CompSup = new TH2D("Ge_CompSup","Ge Compton suppressed",8000,0,4000,50,0,50) ;
-   Ge_BGOveto = new TH2D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000,50,0,50);
+   Ge_CompSupSum = new TH2D("Ge_CompSup","Ge Compton suppressed",8000,0,4000,50,0,50) ;
+   Ge_BGOvetoSum = new TH2D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000,50,0,50);
+   for (i = 0; i < 4; i++) {
+      sprintf(histname, "Ge_CompSup_det%d", i+1);
+      Ge_CompSup[i] = new TH1D(histname,"Ge Compton suppressed sum",8000,0,4000) ;
+      sprintf(histname, "Ge_BGOveto_det%d", i+1);
+      Ge_BGOveto[i] = new TH1D(histname,"Ge vetoed by BGO sum",8000,0,4000);
+      sprintf(histname, "Ge_single_det%d", i+1);
+      Ge_single[i] = new TH1D(histname,"Ge vetoed by BGO sum",8000,0,4000);
+   }
    GeBGO = new TH2D("GeBGO","Ge-BGO coincidenc matrix (only Ge-BGO from one detector)",8000,0,4000, 8000,0,4000);
 
 
-   dt1_BGO1_Ge = new TH2D ("dt1_BGO1_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt1_BGO2_Ge = new TH2D ("dt1_BGO2_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt2_BGO1_Ge = new TH2D ("dt2_BGO1_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt2_BGO2_Ge = new TH2D ("dt2_BGO2_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt3_BGO1_Ge = new TH2D ("dt3_BGO1_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt3_BGO2_Ge = new TH2D ("dt3_BGO2_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt4_BGO1_Ge = new TH2D ("dt4_BGO1_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
-   dt4_BGO2_Ge = new TH2D ("dt4_BGO2_Ge", "Det1, BGO-Ge time difference", 5000,-2500,2500, 4,0,4);
+   dt1_BGO1_Ge = new TH2D ("dt1_BGO1_Ge", "Det1, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt1_BGO2_Ge = new TH2D ("dt1_BGO2_Ge", "Det1, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt2_BGO1_Ge = new TH2D ("dt2_BGO1_Ge", "Det2, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt2_BGO2_Ge = new TH2D ("dt2_BGO2_Ge", "Det2, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt3_BGO1_Ge = new TH2D ("dt3_BGO1_Ge", "Det3, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt3_BGO2_Ge = new TH2D ("dt3_BGO2_Ge", "Det3, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt4_BGO1_Ge = new TH2D ("dt4_BGO1_Ge", "Det4, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
+   dt4_BGO2_Ge = new TH2D ("dt4_BGO2_Ge", "Det4, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
 
    
 
@@ -114,10 +124,14 @@ Bool_t NuBall_anaR5::Process(Long64_t entry)
          continue;
       Ge_sum->Fill(GeNrj[i]);
       Energy->Fill(GeNrj[i],GeLabel[i]);
+      BgoGeHist(Ge_single, GeLabel[i], GeNrj[i]);    
+
       if (BGOveto[i] == 0) {
-         Ge_CompSup->Fill(GeNrj[i], GeLabel[i]);
+         Ge_CompSupSum->Fill(GeNrj[i], GeLabel[i]);
+         BgoGeHist(Ge_CompSup, GeLabel[i], GeNrj[i]); 
       } else {
-         Ge_BGOveto->Fill(GeNrj[i], GeLabel[i]);
+         Ge_BGOvetoSum->Fill(GeNrj[i], GeLabel[i]);
+         BgoGeHist(Ge_BGOveto, GeLabel[i], GeNrj[i]); 
       }
    }
 
@@ -137,11 +151,17 @@ void NuBall_anaR5::Terminate()
    // The Terminate() function is the last function to be called during
    // a query. It always runs on the client, it can be used to present
    // the results graphically or save the results to file.
+   int i;
    Ge_sum->Write();
    BGO_sum->Write();
    Energy->Write();
-   Ge_CompSup->Write();
-   Ge_BGOveto->Write();
+   Ge_CompSupSum->Write();
+   Ge_BGOvetoSum->Write();
+   for (i =0; i < 4; i++) {
+      Ge_CompSup[i]->Write();
+      Ge_BGOveto[i]->Write();
+      Ge_single[i]->Write();
+   }
    GeBGO->Write();
 
    dt1_BGO1_Ge->Write();
@@ -160,156 +180,155 @@ void NuBall_anaR5::processBgoGe (int thisBgoCount, int thisGeCount)
 {
    long long dt;
    dt = GeTime[thisGeCount] - BGOTime[thisBgoCount];
-   if (BGOLabel[thisBgoCount] == 6) {
-      if (GeLabel[thisGeCount] == 10 ){
+   if (BGOLabel[thisBgoCount] == 5) {
+      if (GeLabel[thisGeCount] == 9 ){
           dt1_BGO1_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 11 ) {
+      else if (GeLabel[thisGeCount] == 10 ) {
           dt1_BGO1_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 12 ) {
+      else if (GeLabel[thisGeCount] == 11 ) {
           dt1_BGO1_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 13 ) {
+      else if (GeLabel[thisGeCount] == 12 ) {
           dt1_BGO1_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
-   if (BGOLabel[thisBgoCount] == 7) { 
-      if (GeLabel[thisGeCount] == 10 ) {
+   if (BGOLabel[thisBgoCount] == 6) { 
+      if (GeLabel[thisGeCount] == 9 ) {
           dt1_BGO2_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 11 ) {
+      else if (GeLabel[thisGeCount] == 10 ) {
           dt1_BGO2_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 12 ) {
+      else if (GeLabel[thisGeCount] == 11 ) {
           dt1_BGO2_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 13 ) {
+      else if (GeLabel[thisGeCount] == 12 ) {
           dt1_BGO2_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
-
-   if (BGOLabel[thisBgoCount] == 14) {
-      if (GeLabel[thisGeCount] == 16 ) {
+   if (BGOLabel[thisBgoCount] == 13) {
+      if (GeLabel[thisGeCount] == 15 ) {
           dt2_BGO1_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 17 ) {
+      else if (GeLabel[thisGeCount] == 16 ) {
           dt2_BGO1_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 18 ) {
+      else if (GeLabel[thisGeCount] == 17 ) {
           dt2_BGO1_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 19 ) {
+      else if (GeLabel[thisGeCount] == 18 ) {
           dt2_BGO1_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
-   if (BGOLabel[thisBgoCount] == 15) {
-      if (GeLabel[thisGeCount] == 16 ) {
+   if (BGOLabel[thisBgoCount] == 14) {
+      if (GeLabel[thisGeCount] == 15 ) {
           dt2_BGO2_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 17 ) {
+      else if (GeLabel[thisGeCount] == 16 ) {
           dt2_BGO2_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 18 ) {
+      else if (GeLabel[thisGeCount] == 17 ) {
           dt2_BGO2_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 19 ) {
+      else if (GeLabel[thisGeCount] == 18 ) {
           dt2_BGO2_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
 
-   if (BGOLabel[thisBgoCount] == 20) {
-      if (GeLabel[thisGeCount] == 22 ) {
+   if (BGOLabel[thisBgoCount] == 19) {
+      if (GeLabel[thisGeCount] == 21 ) {
           dt3_BGO1_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 23 ) {
+      else if (GeLabel[thisGeCount] == 22 ) {
           dt3_BGO1_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 24 ) {
+      else if (GeLabel[thisGeCount] == 23 ) {
           dt3_BGO1_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 25 ) {
+      else if (GeLabel[thisGeCount] == 24 ) {
           dt3_BGO1_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
-   if (BGOLabel[thisBgoCount] == 21) {
-      if (GeLabel[thisGeCount] == 22 ) {
+   if (BGOLabel[thisBgoCount] == 20) {
+      if (GeLabel[thisGeCount] == 21 ) {
           dt3_BGO2_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 23 ) {
+      else if (GeLabel[thisGeCount] == 22 ) {
           dt3_BGO2_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 24 ) {
+      else if (GeLabel[thisGeCount] == 23 ) {
           dt3_BGO2_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 25 ) {
+      else if (GeLabel[thisGeCount] == 24 ) {
           dt3_BGO2_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
 
-   if (BGOLabel[thisBgoCount] == 26) {
-      if (GeLabel[thisGeCount] == 28 ) {
+   if (BGOLabel[thisBgoCount] == 25) {
+      if (GeLabel[thisGeCount] == 27 ) {
           dt4_BGO1_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 29 ) {
+      else if (GeLabel[thisGeCount] == 28 ) {
           dt4_BGO1_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 30 ) {
+      else if (GeLabel[thisGeCount] == 29 ) {
           dt4_BGO1_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 31 ) {
+      else if (GeLabel[thisGeCount] == 30 ) {
           dt4_BGO1_Ge->Fill( dt, 3);
           goto increment;
       }
       return;
    }
-   if (BGOLabel[thisBgoCount] == 27) {
-      if (GeLabel[thisGeCount] == 28 ) {
+   if (BGOLabel[thisBgoCount] == 26) {
+      if (GeLabel[thisGeCount] == 27 ) {
           dt4_BGO2_Ge->Fill( dt, 0);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 29 ) {
+      else if (GeLabel[thisGeCount] == 28 ) {
           dt4_BGO2_Ge->Fill( dt, 1);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 30 ) {
+      else if (GeLabel[thisGeCount] == 29 ) {
           dt4_BGO2_Ge->Fill( dt, 2);
           goto increment;
       }
-      else if (GeLabel[thisGeCount] == 31 ) {
+      else if (GeLabel[thisGeCount] == 30 ) {
           dt4_BGO2_Ge->Fill( dt, 3);
           goto increment;
       }
@@ -317,9 +336,46 @@ void NuBall_anaR5::processBgoGe (int thisBgoCount, int thisGeCount)
    }
 increment:
    {
-      BGOveto[thisGeCount] = 1;
-      GeBGO->Fill(GeNrj[thisGeCount], BGONrj[thisBgoCount]);
+      if (BGONrj[thisBgoCount] > BGO_VETO_THRESH
+         && BGO_GE_WINDOW_LOW < dt
+         && BGO_GE_WINDOW_HI > dt
+         ) {
+         BGOveto[thisGeCount] = 1;
+         GeBGO->Fill(GeNrj[thisGeCount], BGONrj[thisBgoCount]);
+      }
    }
+}
+
+void  NuBall_anaR5::BgoGeHist ( TH1D ** thishist, int this_label, double energy )
+{
+     if (this_label == 9 ||
+         this_label == 10 ||
+         this_label == 11 ||
+         this_label == 12
+        ) {
+       thishist[0]->Fill(energy);
+     }
+     if (this_label == 15 ||
+         this_label == 16 ||
+         this_label == 17 ||
+         this_label == 18
+        ) {
+       thishist[1]->Fill(energy);
+     }
+     if (this_label == 21 ||
+         this_label == 22 ||
+         this_label == 23 ||
+         this_label == 24
+        ) {
+       thishist[2]->Fill(energy);
+     }
+     if (this_label == 27 ||
+         this_label == 28 ||
+         this_label == 29 ||
+         this_label == 30
+        ) {
+       thishist[3]->Fill(energy);
+     }
 }
 
 void NuBall_anaR5::reset ()
