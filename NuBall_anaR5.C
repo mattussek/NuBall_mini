@@ -38,7 +38,7 @@ void NuBall_anaR5::Begin(TTree * /*tree*/)
    char outname[200];
    char histname[200];
    int i;
-   sprintf(outname, "anaout_thr1000.root");
+   sprintf(outname, "anaout_thr0.root");
 //   printf("%s.ana.root", fReader.GetTree()->GetTitle());
    OutFile = new TFile(outname,"recreate");
    OutFile->cd();

@@ -10,7 +10,10 @@
 
 #define MAX_ITEMS 20
 #define HIST_MIN 3
-#define BGO_VETO_THRESH 10
+#define BGO_VETO_THRESH 0
+
+
+
 #define BGO_GE_WINDOW_LOW 40
 #define BGO_GE_WINDOW_HI  200
 

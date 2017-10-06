@@ -35,11 +35,13 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    // The tree argument is deprecated (on PROOF 0 is passed).
 
    sprintf(CALIB_FILE, "miniNuBall.cal");
+   sprintf(TSHIFTS_FILE, "TShifts");
    char leafs[300];
    TString option = GetOption();
 //   reset_coinc(coinc);
    dT = 0;
    T0 = 0;
+   lasttime = 0;
 
 //   sprintf(leafs, "fmult/s:gmult/s:dgs[%d]/F:fatima[%d]/F", MaxTreeArraySize, MaxTreeArraySize);
 //    spec_tree->Branch("spec", &spec_event, leafs);
@@ -75,6 +77,7 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    coinc_entry = 0;
 
    readCalibration();
+   readTimeShifts();
 
    printf("starting...\n");
 
@@ -119,14 +122,14 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
 
    if (coinc_mult == 0) {
         //don't care for now if a Ge or BGO starts an event.
-        T0 = time;
+        T0 = time  - tshifts[label];
         if (isBGO(label)) {
-           coinc_BGOTime[0] = time;
+           coinc_BGOTime[0] = time - tshifts[label];
            coinc_BGONrj[0] = nrjCal(label, nrj);
            coinc_BGOLabel[0] = label;
            coinc_BGOmult++;
         } else {
-           coinc_GeTime[0] = time;
+           coinc_GeTime[0] = time - tshifts[label];
            coinc_GeNrj[0] = nrjCal(label, nrj);
            coinc_GeLabel[0] = label;
            coinc_Gemult++;
@@ -134,20 +137,20 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
         coinc_mult++;
 
    } else {
-     dT = time - T0;
-     if (dT < 0) {
-      printf("WARNING: event not time sorted - skipping - (entry %lld, dT = %lld - %lld = %lld\n", entry, time, T0, dT);
+     if (lasttime > time) {
+      printf("WARNING: event not time sorted - skipping - (entry %lld, dT = %lld - %lld = %lld\n", entry, time, lasttime, time-lasttime);
       return kTRUE;
      }
-
+     lasttime = time;
+     dT = time - T0  - tshifts[label];
      if (dT < COINC_WIDTH) {
         if (isBGO(label)) {
-           coinc_BGOTime[coinc_BGOmult] = time;
+           coinc_BGOTime[coinc_BGOmult] = time - tshifts[label];
            coinc_BGONrj[coinc_BGOmult] = nrjCal(label, nrj);
            coinc_BGOLabel[coinc_BGOmult] = label;
            coinc_BGOmult++;
         } else {
-           coinc_GeTime[coinc_Gemult] = time;
+           coinc_GeTime[coinc_Gemult] = time - tshifts[label];
            coinc_GeNrj[coinc_Gemult] = nrjCal(label, nrj);
            coinc_GeLabel[coinc_Gemult] = label;
            coinc_Gemult++;
@@ -170,14 +173,14 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
         reset_coinc();
 
         //don't care for now if a Ge or BGO starts an event.
-        T0 = time;
+        T0 = time - tshifts[label];
         if (isBGO(label)) {
-           coinc_BGOTime[0] = time;
+           coinc_BGOTime[0] = time - tshifts[label];
            coinc_BGONrj[0] = nrjCal(label, nrj);
            coinc_BGOLabel[0] = label;
            coinc_BGOmult++;
         } else {
-           coinc_GeTime[0] = time;
+           coinc_GeTime[0] = time - tshifts[label];
            coinc_GeNrj[0] = nrjCal(label, nrj);
            coinc_GeLabel[0] = label;
            coinc_Gemult++;
@@ -347,6 +350,58 @@ void NuBall_eventbuilderR5::readCalibration()
         return;
 }
 
+void NuBall_eventbuilderR5::readTimeShifts()
+{
+   	int this_label=0;
+        int i;
+	int TShift;
+
+
+	int lnr=0;
+	//read the file and fill the arrays
+	FILE *tsfile = fopen( TSHIFTS_FILE , "r") ;
+	printf("\nReading calibration parameters from %s...", TSHIFTS_FILE) ;
+
+        //initialising calParameters to -10000 (shifting unwanted detectors out of range).
+        for (i=0; i<MAX_LABEL; i++) {
+              tshifts[i] = -10000;
+              tshifts[i] = -10000;
+        }
+
+	if(tsfile != NULL) //Load the values if file exists
+	{
+		char line[1000];
+
+                //reading the file line by line, skipping comments (#) and empty lines
+                //but exiting if format is otherwise wrong.
+		while (fgets(line, sizeof line, tsfile))
+		{
+			lnr++;
+			if (*line == '#' || *line == '\n') 
+			{
+				continue; // ignore comment line (TODO add empty line)
+			}
+			if (sscanf(line, "%d\t%d",&this_label,&TShift) == 2) {
+				if(label < MAX_LABEL)
+				{
+				   tshifts[this_label] = TShift;
+				}
+			}else{
+				printf("FAILED to parse line in cal file %s:\n%s\nEXITING\n", CALIB_FILE, line);
+				exit (EXIT_FAILURE);
+			}
+		}
+		printf("OK\n");
+	        printf("Time stamp shifts read from file %s:\n", TSHIFTS_FILE);
+                for (i=0; i<MAX_LABEL; i++) {
+                   printf("%02d  %6d\n", i, tshifts[i]);
+                }
+                printf("\n");
+                return;
+        }
+	printf("FAILED\nError: File not found: %s\nNo time stamp shifts will be applied.\n\n", TSHIFTS_FILE) ;
+        return;
+}
 
 double  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
 {

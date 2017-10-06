@@ -38,7 +38,7 @@ void NuBall_anaR5::Begin(TTree * /*tree*/)
    char outname[200];
    char histname[200];
    int i;
-   sprintf(outname, "anaout_thr1000.root");
+   sprintf(outname, "anaout_thr20.root");
 //   printf("%s.ana.root", fReader.GetTree()->GetTitle());
    OutFile = new TFile(outname,"recreate");
    OutFile->cd();
@@ -344,6 +344,38 @@ increment:
          GeBGO->Fill(GeNrj[thisGeCount], BGONrj[thisBgoCount]);
       }
    }
+}
+
+void  NuBall_anaR5::BgoGeHist ( TH1D ** thishist, int this_label, double energy )
+{
+     if (this_label == 9 ||
+         this_label == 10 ||
+         this_label == 11 ||
+         this_label == 12
+        ) {
+       thishist[0]->Fill(energy);
+     }
+     if (this_label == 15 ||
+         this_label == 16 ||
+         this_label == 17 ||
+         this_label == 18
+        ) {
+       thishist[1]->Fill(energy);
+     }
+     if (this_label == 21 ||
+         this_label == 22 ||
+         this_label == 23 ||
+         this_label == 24
+        ) {
+       thishist[2]->Fill(energy);
+     }
+     if (this_label == 27 ||
+         this_label == 28 ||
+         this_label == 29 ||
+         this_label == 30
+        ) {
+       thishist[3]->Fill(energy);
+     }
 }
 
 void NuBall_anaR5::reset ()

@@ -56,11 +56,14 @@ public :
 
 /////////
    char CALIB_FILE[256];
+   char TSHIFTS_FILE[256];
    long long T0;
    long long dT;
    long long nCoincidences;
    long long coinc_entry;
    double    calParameters[MAX_LABEL][2];
+   int       tshifts[MAX_LABEL];
+   Long64_t  lasttime;
 
    TTree *coinc_tree;
    TFile *outfile;
@@ -102,6 +105,7 @@ public :
    void  printCurrBranch();
    void  fillHistograms();
    void  readCalibration(); // initialses calParameters to 0
+   void  readTimeShifts();  // initialises timeshifts to -10000
    double nrjCal(int this_label, int this_nrj);
    bool  isBGO(int this_label);
 
