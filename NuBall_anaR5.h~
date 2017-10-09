@@ -1,16 +1,19 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Wed Oct  4 16:14:50 2017 by ROOT version 6.10/02
+// Tue Oct  3 20:09:18 2017 by ROOT version 5.34/14
 // from TTree coinc/NuBall coinc tree
 // found on file: out.root
 //////////////////////////////////////////////////////////
 
-#ifndef NuBall_ana_h
-#define NuBall_ana_h
+#ifndef NuBall_anaR5_h
+#define NuBall_anaR5_h
 
 #define MAX_ITEMS 20
 #define HIST_MIN 3
-#define BGO_VETO_THRESH 1000
+#define BGO_VETO_THRESH 0
+
+
+
 #define BGO_GE_WINDOW_LOW 40
 #define BGO_GE_WINDOW_HI  200
 
@@ -18,32 +21,40 @@
 #include <TChain.h>
 #include <TFile.h>
 #include <TSelector.h>
-#include <TTreeReader.h>
-#include <TTreeReaderValue.h>
-#include <TTreeReaderArray.h>
 #include <TH1.h>
 #include <TH2.h>
 
+// Header file for the classes stored in the TTree if any.
 
-// Headers needed by this particular selector
+// Fixed size dimensions of array or collections stored in the TTree if any.
 
-
-class NuBall_ana : public TSelector {
+class NuBall_anaR5 : public TSelector {
 public :
-   TTreeReader     fReader;  //!the tree reader
-   TTree          *fChain = 0;   //!pointer to the analyzed TTree or TChain
+   TTree          *fChain;   //!pointer to the analyzed TTree or TChain
 
-   // Readers to access the data (delete the ones you do not need).
-   TTreeReaderArray<Long64_t> GeTime = {fReader, "GeTime"};
-   TTreeReaderArray<Long64_t> BGOTime = {fReader, "BGOTime"};
-   TTreeReaderArray<Int_t> GeLabel = {fReader, "GeLabel"};
-   TTreeReaderArray<Int_t> BGOLabel = {fReader, "BGOLabel"};
-   TTreeReaderArray<Double_t> GeNrj = {fReader, "GeNrj"};
-   TTreeReaderArray<Double_t> BGONrj = {fReader, "BGONrj"};
-   TTreeReaderValue<Int_t> mult = {fReader, "mult"};
-   TTreeReaderValue<Int_t> mult_bgo = {fReader, "mult_bgo"};
-   TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
-   TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
+   // Declaration of leaf types
+   Long64_t        GeTime[20];
+   Long64_t        BGOTime[20];
+   Int_t           GeLabel[20];
+   Int_t           BGOLabel[20];
+   Double_t        GeNrj[20];
+   Double_t        BGONrj[20];
+   Int_t           mult;
+   Int_t           mult_bgo;
+   Int_t           mult_ge;
+   Bool_t          has_ref;
+
+   // List of branches
+   TBranch        *b_GeTime;   //!
+   TBranch        *b_BGOTime;   //!
+   TBranch        *b_GeLabel;   //!
+   TBranch        *b_BGOLabel;   //!
+   TBranch        *b_GeNrj;   //!
+   TBranch        *b_BGONrj;   //!
+   TBranch        *b_mult;   //!
+   TBranch        *b_mult_bgo;   //!
+   TBranch        *b_mult_ge;   //!
+   TBranch        *b_has_ref;   //!
 
    Int_t BGOveto[MAX_ITEMS];
 
@@ -69,8 +80,8 @@ public :
    
    TFile* OutFile;
 
-   NuBall_ana(TTree * /*tree*/ =0) { }
-   virtual ~NuBall_ana() { }
+   NuBall_anaR5(TTree * /*tree*/ =0) : fChain(0) { }
+   virtual ~NuBall_anaR5() { }
    virtual Int_t   Version() const { return 2; }
    virtual void    Begin(TTree *tree);
    virtual void    SlaveBegin(TTree *tree);
@@ -89,27 +100,40 @@ public :
    void   BgoGeHist ( TH1D **thishist, int this_label, double energy );
    void   reset();
 
-
-   ClassDef(NuBall_ana,0);
-
+   ClassDef(NuBall_anaR5,0);
 };
 
 #endif
 
-#ifdef NuBall_ana_cxx
-void NuBall_ana::Init(TTree *tree)
+#ifdef NuBall_anaR5_cxx
+void NuBall_anaR5::Init(TTree *tree)
 {
    // The Init() function is called when the selector needs to initialize
-   // a new tree or chain. Typically here the reader is initialized.
+   // a new tree or chain. Typically here the branch addresses and branch
+   // pointers of the tree will be set.
    // It is normally not necessary to make changes to the generated
    // code, but the routine can be extended by the user if needed.
    // Init() will be called many times when running on PROOF
    // (once per file to be processed).
 
-   fReader.SetTree(tree);
+   // Set branch addresses and branch pointers
+   if (!tree) return;
+   fChain = tree;
+   fChain->SetMakeClass(1);
+
+   fChain->SetBranchAddress("GeTime", GeTime, &b_GeTime);
+   fChain->SetBranchAddress("BGOTime", BGOTime, &b_BGOTime);
+   fChain->SetBranchAddress("GeLabel", GeLabel, &b_GeLabel);
+   fChain->SetBranchAddress("BGOLabel", BGOLabel, &b_BGOLabel);
+   fChain->SetBranchAddress("GeNrj", GeNrj, &b_GeNrj);
+   fChain->SetBranchAddress("BGONrj", BGONrj, &b_BGONrj);
+   fChain->SetBranchAddress("mult", &mult, &b_mult);
+   fChain->SetBranchAddress("mult_bgo", &mult_bgo, &b_mult_bgo);
+   fChain->SetBranchAddress("mult_ge", &mult_ge, &b_mult_ge);
+   fChain->SetBranchAddress("has_ref", &has_ref, &b_has_ref);
 }
 
-Bool_t NuBall_ana::Notify()
+Bool_t NuBall_anaR5::Notify()
 {
    // The Notify() function is called when a new file is opened. This
    // can be either for a new TTree in a TChain or when when a new TTree
@@ -120,5 +144,4 @@ Bool_t NuBall_ana::Notify()
    return kTRUE;
 }
 
-
-#endif // #ifdef NuBall_ana_cxx
+#endif // #ifdef NuBall_anaR5_cxx

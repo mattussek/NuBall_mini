@@ -35,11 +35,13 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    // The tree argument is deprecated (on PROOF 0 is passed).
 
    sprintf(CALIB_FILE, "miniNuBall.cal");
+   sprintf(TSHIFTS_FILE, "TShifts");
    char leafs[300];
    TString option = GetOption();
 //   reset_coinc(coinc);
    dT = 0;
    T0 = 0;
+   lasttime = 0;
 
 //   sprintf(leafs, "fmult/s:gmult/s:dgs[%d]/F:fatima[%d]/F", MaxTreeArraySize, MaxTreeArraySize);
 //    spec_tree->Branch("spec", &spec_event, leafs);
@@ -49,25 +51,33 @@ void NuBall_eventbuilderR5::Begin(TTree * /*tree*/)
    outfile = new TFile("out.root", "recreate");
    outfile->cd();
    coinc_tree = new TTree("coinc", "NuBall coinc tree");
-   sprintf(leafs, "time[%d]/L", MAX_ITEMS);
-   coinc_tree->Branch("time", &coinc_time, leafs);
-   sprintf(leafs, "label[%d]/I", MAX_ITEMS);
-   coinc_tree->Branch("label", &coinc_label, leafs);
-   sprintf(leafs, "nrj[%d]/I", MAX_ITEMS);
-   coinc_tree->Branch("nrj", &coinc_nrj, leafs);
+
+   sprintf(leafs, "GeTime[%d]/L", MAX_ITEMS);
+   coinc_tree->Branch("GeTime", &coinc_GeTime, leafs);
+   sprintf(leafs, "BGOTime[%d]/L", MAX_ITEMS);
+   coinc_tree->Branch("BGOTime", &coinc_BGOTime, leafs);
+   sprintf(leafs, "GeLabel[%d]/I", MAX_ITEMS);
+   coinc_tree->Branch("GeLabel", &coinc_GeLabel, leafs);
+   sprintf(leafs, "BGOLabel[%d]/I", MAX_ITEMS);
+   coinc_tree->Branch("BGOLabel", &coinc_BGOLabel, leafs);
+   sprintf(leafs, "GeNrj[%d]/D", MAX_ITEMS);
+   coinc_tree->Branch("GeNrj", &coinc_GeNrj, leafs);
+   sprintf(leafs, "BGONrj[%d]/D", MAX_ITEMS);
+   coinc_tree->Branch("BGONrj", &coinc_BGONrj, leafs);
 
    coinc_tree->Branch("mult", &coinc_mult, "mult/I");
-   coinc_tree->Branch("mult_bgo", &coinc_mult_bgo, "mult_bgo/I");
-   coinc_tree->Branch("mult_ge", &coinc_mult_ge, "mult_ge/I");
+   coinc_tree->Branch("mult_bgo", &coinc_BGOmult, "mult_bgo/I");
+   coinc_tree->Branch("mult_ge", &coinc_Gemult, "mult_ge/I");
    coinc_tree->Branch("has_ref", &coinc_has_ref, "has_ref/O");
 
    hdt = new TH2D("hdt", "time diff, ref 28", 2048,-8192,8192, 100,0,100);
-   hgg =  new TH2D("hgg", "gamma-gamma coinc mat", 8192,0,8192,8192,0,8192);
+   hGeGe =  new TH2D("hGeGe", "gamma-gamma coinc mat", 8192,0,8192,8192,0,8192);
    hg =  new TH2D("hg", "gamma single matrices", 8192,0,8192,100,0,100);
    nCoincidences = 0;
    coinc_entry = 0;
 
    readCalibration();
+   readTimeShifts();
 
    printf("starting...\n");
 
@@ -104,33 +114,56 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
    // The return value is currently not used.
    NuBall_eventbuilderR5::GetEntry(entry);
 
+
    if (label > MAX_LABEL) {
       printf("WARNING: Found label that exceeds limit (label%d) -> skipping event\n", label);
       return kTRUE;
    }
 
    if (coinc_mult == 0) {
-      T0 = time;
-      coinc_time[0] = time;
-      coinc_nrj[0] = nrjCal(label, nrj);
-      coinc_label[0] = label;
-      coinc_mult++;
+        //don't care for now if a Ge or BGO starts an event.
+        T0 = time  - tshifts[label];
+        if (isBGO(label)) {
+           coinc_BGOTime[0] = time - tshifts[label];
+           coinc_BGONrj[0] = nrjCal(label, nrj);
+           coinc_BGOLabel[0] = label;
+           coinc_BGOmult++;
+        } else {
+           coinc_GeTime[0] = time - tshifts[label];
+           coinc_GeNrj[0] = nrjCal(label, nrj);
+           coinc_GeLabel[0] = label;
+           coinc_Gemult++;
+        }
+        coinc_mult++;
 
    } else {
-     dT = time - T0;
-     if (dT < 0) {
-      printf("WARNING: event not time sorted - skipping - (entry %lld, dT = %lld - %lld = %lld\n", entry, time, T0, dT);
+     if (lasttime > time) {
+      printf("WARNING: event not time sorted - skipping - (entry %lld, dT = %lld - %lld = %lld\n", entry, time, lasttime, time-lasttime);
       return kTRUE;
      }
-
+     lasttime = time;
+     dT = time - T0  - tshifts[label];
      if (dT < COINC_WIDTH) {
-        coinc_time[coinc_mult] = time;
-        coinc_nrj[coinc_mult] = nrjCal(label, nrj);
-        coinc_label[coinc_mult] = label;
+        if (isBGO(label)) {
+           coinc_BGOTime[coinc_BGOmult] = time - tshifts[label];
+           coinc_BGONrj[coinc_BGOmult] = nrjCal(label, nrj);
+           coinc_BGOLabel[coinc_BGOmult] = label;
+           coinc_BGOmult++;
+        } else {
+           coinc_GeTime[coinc_Gemult] = time - tshifts[label];
+           coinc_GeNrj[coinc_Gemult] = nrjCal(label, nrj);
+           coinc_GeLabel[coinc_Gemult] = label;
+           coinc_Gemult++;
+        }
         coinc_mult++;
+        if (coinc_BGOmult >= MAX_ITEMS || coinc_Gemult >= MAX_ITEMS) {
+           printf("WARNING: Event exceeds limit of data items per event. Ge:%d, BGO:%d\nstarting next event.\n", coinc_Gemult, coinc_BGOmult);
+           reset_coinc();
+           return kTRUE;
+        }
      } else {
         //write to tree here
-        if (coinc_mult > 1)
+        if (coinc_Gemult > 1)
             nCoincidences++;
 //        printCurrBranch();
         coinc_tree->Fill();
@@ -139,11 +172,21 @@ Bool_t NuBall_eventbuilderR5::Process(Long64_t entry)
 //        printCoinc();
         reset_coinc();
 
-        T0 = time;
-        coinc_time[0] = time;
-        coinc_nrj[0] = nrjCal(label, nrj);
-        coinc_label[0] = label;
+        //don't care for now if a Ge or BGO starts an event.
+        T0 = time - tshifts[label];
+        if (isBGO(label)) {
+           coinc_BGOTime[0] = time - tshifts[label];
+           coinc_BGONrj[0] = nrjCal(label, nrj);
+           coinc_BGOLabel[0] = label;
+           coinc_BGOmult++;
+        } else {
+           coinc_GeTime[0] = time - tshifts[label];
+           coinc_GeNrj[0] = nrjCal(label, nrj);
+           coinc_GeLabel[0] = label;
+           coinc_Gemult++;
+        }
         coinc_mult++;
+
      }
    }
 
@@ -167,7 +210,7 @@ void NuBall_eventbuilderR5::Terminate()
    coinc_tree->Write();
    hdt->Write();
    hg->Write();
-   hgg->Write();
+   hGeGe->Write();
 
    outfile->Close();
    printf("Finished.\nFound %lld coincidences.\nWrote %lld entries to the new TTree.\n", nCoincidences, coinc_entry);
@@ -180,10 +223,13 @@ void NuBall_eventbuilderR5::printCoinc()
       return;
    int i = 0;
    printf("+++Found coincidence %lld:\n", nCoincidences);
-   for (i=0; i<coinc_mult; i++) {
-      printf("label%d - energy%d - time %lld\n", coinc_label[i], coinc_nrj[i], coinc_time[i]);
+   for (i=0; i<coinc_Gemult; i++) {
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
    }
-   printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_mult_bgo, coinc_mult_ge);
+   for (i=0; i<coinc_BGOmult; i++) {
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
+   }
+   printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_BGOmult, coinc_Gemult);
    printf("//\n");
    return;
 }
@@ -192,10 +238,13 @@ void NuBall_eventbuilderR5::printCurrBranch()
 {
    int i = 0;
    printf("+++Current Branch content %lld:\n", coinc_entry);
-   for (i=0; i<coinc_mult; i++) {
-      printf("label%d - energy%d - time %lld\n", coinc_label[i], coinc_nrj[i], coinc_time[i]);
+   for (i=0; i<coinc_Gemult; i++) {
+      printf("Ge:  label%d - energy%f - time %lld\n", coinc_GeLabel[i], coinc_GeNrj[i], coinc_GeTime[i]);
    }
-   printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_mult_bgo, coinc_mult_ge);
+   for (i=0; i<coinc_BGOmult; i++) {
+      printf("BGO:  label%d - energy%f - time %lld\n", coinc_BGOLabel[i], coinc_BGONrj[i], coinc_BGOTime[i]);
+   }
+   printf("**multiplicities: tot%d, bgo%d, ge%d\n", coinc_mult, coinc_BGOmult, coinc_Gemult);
    printf("//\n");
    return;
 }
@@ -205,56 +254,41 @@ void NuBall_eventbuilderR5::fillHistograms()
    int i = 0;
    int j = 0;
    int ref_pos = -1;
-   long long ref_time = 0;
-   bool isBGO[coinc_mult];
+   long long ref_GeTime = 0;
 
-   for (i=0; i<coinc_mult; i++) {
-      hg->Fill(coinc_nrj[i], coinc_label[i]);
+   for (i=0; i<coinc_Gemult; i++) {
+      hg->Fill(coinc_GeNrj[i], coinc_GeLabel[i]);
       //check for the reference detector
-      if (coinc_label[i] == T_REF) {
-         ref_pos = coinc_label[i];
-         ref_time = coinc_time[i];
+      if (coinc_GeLabel[i] == T_REF) {
+         ref_pos = coinc_GeLabel[i];
+         ref_GeTime = coinc_GeTime[i];
          coinc_has_ref = 1;
       }
-      //check detector type
-      isBGO[i] = 0;
-      if (
-         coinc_label[i] == 6 || // these are the BGOs in the mini setup
-         coinc_label[i] == 7 ||
-         coinc_label[i] == 14 ||
-         coinc_label[i] == 15 ||
-         coinc_label[i] == 20 ||
-         coinc_label[i] == 21 ||
-         coinc_label[i] == 26 ||
-         coinc_label[i] == 27 
-      ) {
-         coinc_mult_bgo++;
-         isBGO[i] = 1;
-      } else {
-         coinc_mult_ge++;
-      }
-
    }
-   for (i=0; i<coinc_mult; i++) {
+
+   for (i=0; i<coinc_BGOmult; i++) {
+      hg->Fill(coinc_BGONrj[i], coinc_BGOLabel[i]);
+   }
+
+   for (i=0; i<coinc_Gemult; i++) {
       //increment gg matrix
-      if (isBGO[i])
-         continue;
-      for (j=i+1; j<coinc_mult; j++) {
-         if (isBGO[j])
-            continue;
-         if (coinc_label[i] != coinc_label[j]) {
-            hgg->Fill(coinc_nrj[i], coinc_nrj[j]);
-            hgg->Fill(coinc_nrj[j], coinc_nrj[i]);
+      for (j=i+1; j<coinc_Gemult; j++) {
+         if (coinc_GeLabel[i] != coinc_GeLabel[j]) {
+            hGeGe->Fill(coinc_GeNrj[i], coinc_GeNrj[j]);
+            hGeGe->Fill(coinc_GeNrj[j], coinc_GeNrj[i]);
          }
       }
    }
-   
+
    //make dt matrix rel to reference detector
    if (ref_pos > -1) {
-      for (i=0; i<coinc_mult; i++) {
-         if (coinc_label[i] == ref_pos)
+      for (i=0; i<coinc_Gemult; i++) {
+         if (coinc_GeLabel[i] == ref_pos)
             continue;
-         hdt->Fill((Long64_t) (coinc_time[i] - ref_time), coinc_label[i]);
+         hdt->Fill((Long64_t) (coinc_GeTime[i] - ref_GeTime), coinc_GeLabel[i]);
+      }
+      for (i=0; i<coinc_BGOmult; i++) {
+         hdt->Fill((Long64_t) (coinc_BGOTime[i] - ref_GeTime), coinc_BGOLabel[i]);
       }
    }
    
@@ -266,7 +300,7 @@ void NuBall_eventbuilderR5::readCalibration()
 {
    	int this_label=0;
         int i;
-	float params[2];
+	double params[2];
 
 
 	int lnr=0;
@@ -293,7 +327,7 @@ void NuBall_eventbuilderR5::readCalibration()
 			{
 				continue; // ignore comment line (TODO add empty line)
 			}
-			if (sscanf(line, "%d\t%f\t%f",&this_label,&params[0], &params[1]) == 3) {
+			if (sscanf(line, "%d\t%lf\t%lf",&this_label,&params[0], &params[1]) == 3) {
 				if(label < MAX_LABEL)
 				{
 				   calParameters[this_label][0] = params[0];
@@ -316,17 +350,93 @@ void NuBall_eventbuilderR5::readCalibration()
         return;
 }
 
-
-float  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
+void NuBall_eventbuilderR5::readTimeShifts()
 {
-	double ene;
-//	double random = ((double) rand()) / ((double) RAND_MAX *1);
+   	int this_label=0;
+        int i;
+	int TShift;
 
-	ene = calParameters[this_label][0] + calParameters[this_label][1]*this_nrj;
-        return (float) ene;
+
+	int lnr=0;
+	//read the file and fill the arrays
+	FILE *tsfile = fopen( TSHIFTS_FILE , "r") ;
+	printf("\nReading calibration parameters from %s...", TSHIFTS_FILE) ;
+
+        //initialising calParameters to -10000 (shifting unwanted detectors out of range).
+        for (i=0; i<MAX_LABEL; i++) {
+              tshifts[i] = -10000;
+              tshifts[i] = -10000;
+        }
+
+	if(tsfile != NULL) //Load the values if file exists
+	{
+		char line[1000];
+
+                //reading the file line by line, skipping comments (#) and empty lines
+                //but exiting if format is otherwise wrong.
+		while (fgets(line, sizeof line, tsfile))
+		{
+			lnr++;
+			if (*line == '#' || *line == '\n') 
+			{
+				continue; // ignore comment line (TODO add empty line)
+			}
+			if (sscanf(line, "%d\t%d",&this_label,&TShift) == 2) {
+				if(label < MAX_LABEL)
+				{
+				   tshifts[this_label] = TShift;
+				}
+			}else{
+				printf("FAILED to parse line in cal file %s:\n%s\nEXITING\n", CALIB_FILE, line);
+				exit (EXIT_FAILURE);
+			}
+		}
+		printf("OK\n");
+	        printf("Time stamp shifts read from file %s:\n", TSHIFTS_FILE);
+                for (i=0; i<MAX_LABEL; i++) {
+                   printf("%02d  %6d\n", i, tshifts[i]);
+                }
+                printf("\n");
+                return;
+        }
+	printf("FAILED\nError: File not found: %s\nNo time stamp shifts will be applied.\n\n", TSHIFTS_FILE) ;
+        return;
 }
 
+double  NuBall_eventbuilderR5::nrjCal(int this_label, int this_nrj)
+{
+	double ene, ene_tmp;
+	double random = ((double) rand()) / ((double) RAND_MAX*2);
 
+	ene_tmp = calParameters[this_label][0] + calParameters[this_label][1]*this_nrj;
+
+	if( (2*ene_tmp - (Int_t)(2*ene_tmp)) > (double) random)
+	{
+		ene = ene_tmp + 0.5;
+	}else{
+		ene = ene_tmp;
+	}
+
+        return ene;
+}
+
+bool NuBall_eventbuilderR5::isBGO(int this_label)
+{
+      if (
+         this_label == 5 || // these are the BGOs in the mini setup
+         this_label == 6 ||
+         this_label == 13 ||
+         this_label == 14 ||
+         this_label == 19 ||
+         this_label == 20 ||
+         this_label == 25 ||
+         this_label == 26 
+      ) {
+         return 1;
+      } else {
+         return 0;
+      }
+}
 
 
 

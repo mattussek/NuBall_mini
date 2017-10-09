@@ -1,9 +1,8 @@
-#define NuBall_ana_cxx
-// The class definition in NuBall_ana.h has been generated automatically
+#define NuBall_anaR5_cxx
+// The class definition in NuBall_anaR5.h has been generated automatically
 // by the ROOT utility TTree::MakeSelector(). This class is derived
 // from the ROOT class TSelector. For more information on the TSelector
 // framework see $ROOTSYS/README/README.SELECTOR or the ROOT User Manual.
-
 
 // The following methods are defined in this file:
 //    Begin():        called every time a loop on the tree starts,
@@ -19,17 +18,17 @@
 //
 // To use this file, try the following session on your Tree T:
 //
-// root> T->Process("NuBall_ana.C")
-// root> T->Process("NuBall_ana.C","some options")
-// root> T->Process("NuBall_ana.C+")
+// Root > T->Process("NuBall_anaR5.C")
+// Root > T->Process("NuBall_anaR5.C","some options")
+// Root > T->Process("NuBall_anaR5.C+")
 //
 
-
-#include "NuBall_ana.h"
+#include "NuBall_anaR5.h"
 #include <TH2.h>
 #include <TStyle.h>
 
-void NuBall_ana::Begin(TTree * /*tree*/)
+
+void NuBall_anaR5::Begin(TTree * /*tree*/)
 {
    // The Begin() function is called at the start of the query.
    // When running with PROOF Begin() is only called on the client.
@@ -39,7 +38,7 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    char outname[200];
    char histname[200];
    int i;
-   sprintf(outname, "anaout_thr1000.root");
+   sprintf(outname, "anaout_thr0.root");
 //   printf("%s.ana.root", fReader.GetTree()->GetTitle());
    OutFile = new TFile(outname,"recreate");
    OutFile->cd();
@@ -74,7 +73,7 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    printf("starting...\n");
 }
 
-void NuBall_ana::SlaveBegin(TTree * /*tree*/)
+void NuBall_anaR5::SlaveBegin(TTree * /*tree*/)
 {
    // The SlaveBegin() function is called after the Begin() function.
    // When running with PROOF SlaveBegin() is called on each slave server.
@@ -84,15 +83,17 @@ void NuBall_ana::SlaveBegin(TTree * /*tree*/)
 
 }
 
-Bool_t NuBall_ana::Process(Long64_t entry)
+Bool_t NuBall_anaR5::Process(Long64_t entry)
 {
    // The Process() function is called for each entry in the tree (or possibly
    // keyed object in the case of PROOF) to be processed. The entry argument
    // specifies which entry in the currently loaded tree is to be processed.
-   // When processing keyed objects with PROOF, the object is already loaded
-   // and is available via the fObject pointer.
+   // It can be passed to either NuBall_anaR5::GetEntry() or TBranch::GetEntry()
+   // to read either all or the required parts of the data. When processing
+   // keyed objects with PROOF, the object is already loaded and is available
+   // via the fObject pointer.
    //
-   // This function should contain the \"body\" of the analysis. It can contain
+   // This function should contain the "body" of the analysis. It can contain
    // simple or elaborate selection criteria, run algorithms on the data
    // of the event and typically fill histograms.
    //
@@ -102,24 +103,23 @@ Bool_t NuBall_ana::Process(Long64_t entry)
    //
    // The return value is currently not used.
 
-   fReader.SetEntry(entry);
-
+   NuBall_anaR5::GetEntry(entry);
 
    int i,j;
    reset();
-   for( i=0; i<*mult_bgo; i++)  {
+   for( i=0; i<mult_bgo; i++)  {
       if (BGONrj[i] < HIST_MIN)
          continue;
       BGO_sum->Fill(BGONrj[i]);
       Energy->Fill(BGONrj[i],BGOLabel[i]);
-      for (j=0; j<*mult_ge; j++) {
+      for (j=0; j<mult_ge; j++) {
          if (GeNrj[i] < HIST_MIN)
             continue;
          processBgoGe(i,j);
       }      
    }
 
-   for( i=0; i<*mult_ge; i++)  {
+   for( i=0; i<mult_ge; i++)  {
       if (GeNrj[i] < HIST_MIN)
          continue;
       Ge_sum->Fill(GeNrj[i]);
@@ -138,7 +138,7 @@ Bool_t NuBall_ana::Process(Long64_t entry)
    return kTRUE;
 }
 
-void NuBall_ana::SlaveTerminate()
+void NuBall_anaR5::SlaveTerminate()
 {
    // The SlaveTerminate() function is called after all entries or objects
    // have been processed. When running with PROOF SlaveTerminate() is called
@@ -146,7 +146,7 @@ void NuBall_ana::SlaveTerminate()
 
 }
 
-void NuBall_ana::Terminate()
+void NuBall_anaR5::Terminate()
 {
    // The Terminate() function is the last function to be called during
    // a query. It always runs on the client, it can be used to present
@@ -176,7 +176,7 @@ void NuBall_ana::Terminate()
    OutFile->Close();
 }
 
-void NuBall_ana::processBgoGe (int thisBgoCount, int thisGeCount)
+void NuBall_anaR5::processBgoGe (int thisBgoCount, int thisGeCount)
 {
    long long dt;
    dt = GeTime[thisGeCount] - BGOTime[thisBgoCount];
@@ -346,7 +346,7 @@ increment:
    }
 }
 
-void  NuBall_ana::BgoGeHist ( TH1D ** thishist, int this_label, double energy )
+void  NuBall_anaR5::BgoGeHist ( TH1D ** thishist, int this_label, double energy )
 {
      if (this_label == 9 ||
          this_label == 10 ||
@@ -378,8 +378,19 @@ void  NuBall_ana::BgoGeHist ( TH1D ** thishist, int this_label, double energy )
      }
 }
 
-void NuBall_ana::reset ()
+void NuBall_anaR5::reset ()
 {
    memset(BGOveto, 0, sizeof(Int_t)*MAX_ITEMS);  
 }
+
+
+
+
+
+
+
+
+
+
+
 
