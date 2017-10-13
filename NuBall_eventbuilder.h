@@ -1,16 +1,18 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Tue Sep 26 12:36:31 2017 by ROOT version 6.08/06
+// Fri Oct  6 16:35:55 2017 by ROOT version 6.10/02
 // from TTree DataTree/faster to tree root test : DATAFILENAME
-// found on file: 60Co_first_mini_nuball_0001.root
+// found on file: RAWDATA/rootfiles/60Co_first_mini_nuball_0001.root
 //////////////////////////////////////////////////////////
 
-#ifndef NuballEventBuilder_h
-#define NuballEventBuilder_h
+#ifndef NuBall_eventbuilder_h
+#define NuBall_eventbuilder_h
 
-#define MAX_ITEMS 15
-#define COINC_WIDTH 400
+#define MAX_ITEMS 20
+#define MAX_LABEL 40
+#define COINC_WIDTH 2000
 #define T_REF 28
+#define CALIBFILE 
 
 #include <TROOT.h>
 #include <TChain.h>
@@ -24,9 +26,7 @@
 // Headers needed by this particular selector
 
 
-
-
-class NuballEventBuilder : public TSelector {
+class NuBall_eventbuilder : public TSelector {
 public :
    TTreeReader     fReader;  //!the tree reader
    TTree          *fChain = 0;   //!pointer to the analyzed TTree or TChain
@@ -34,28 +34,39 @@ public :
    // Readers to access the data (delete the ones you do not need).
    TTreeReaderValue<Int_t> label = {fReader, "label"};
    TTreeReaderValue<Int_t> nrj = {fReader, "nrj"};
-   TTreeReaderValue<long long> time = {fReader, "time"};
-
+   TTreeReaderValue<Long64_t> time = {fReader, "time"};
+   NuBall_eventbuilder(TTree * /*tree*/ =0) { }
 /////branches for coinc tree
-   long long coinc_time [MAX_ITEMS];
-   Int_t    coinc_label [MAX_ITEMS];
-   Int_t    coinc_nrj [MAX_ITEMS];
+   Long64_t coinc_GeTime [MAX_ITEMS];
+   Int_t    coinc_GeLabel [MAX_ITEMS];
+   Double_t  coinc_GeNrj [MAX_ITEMS];
+   Long64_t coinc_BGOTime [MAX_ITEMS];
+   Int_t    coinc_BGOLabel [MAX_ITEMS];
+   Double_t  coinc_BGONrj [MAX_ITEMS];
    Int_t    coinc_mult;
-   Int_t    coinc_mult_bgo;
-   Int_t    coinc_mult_ge;
+   Int_t    coinc_Gemult;
+   Int_t    coinc_BGOmult;
    Bool_t   coinc_has_ref;
 
 /////////
-
+   char CALIB_FILE[256];
+   char TSHIFTS_FILE[256];
    long long T0;
    long long dT;
+   long long nCoincidences;
+   long long coinc_entry;
+   double    calParameters[MAX_LABEL][2];
+   int       tshifts[MAX_LABEL];
+   Long64_t  lasttime;
 
    TTree *coinc_tree;
    TFile *outfile;
    TH2D  *hdt;
+   TH2D  *hg;
+   TH2D  *hGeGe;
 
-   NuballEventBuilder(TTree * /*tree*/ =0) { }
-   virtual ~NuballEventBuilder() { }
+
+   virtual ~NuBall_eventbuilder() { }
    virtual Int_t   Version() const { return 2; }
    virtual void    Begin(TTree *tree);
    virtual void    SlaveBegin(TTree *tree);
@@ -70,24 +81,36 @@ public :
    virtual void    SlaveTerminate();
    virtual void    Terminate();
 
+
    void reset_coinc() {
-     memset(coinc_time, 0, sizeof(double)*MAX_ITEMS);
-     memset(coinc_label, 0, sizeof(int)*MAX_ITEMS);
-     memset(coinc_nrj, 0, sizeof(int)*MAX_ITEMS);
+     memset(coinc_GeTime, 0, sizeof(double)*MAX_ITEMS);
+     memset(coinc_GeLabel, 0, sizeof(int)*MAX_ITEMS);
+     memset(coinc_GeNrj, 0, sizeof(int)*MAX_ITEMS);
+     memset(coinc_BGOTime, 0, sizeof(double)*MAX_ITEMS);
+     memset(coinc_BGOLabel, 0, sizeof(int)*MAX_ITEMS);
+     memset(coinc_BGONrj, 0, sizeof(int)*MAX_ITEMS);
      coinc_mult=0;
-     coinc_mult_bgo=0;
-     coinc_mult_ge=0;
+     coinc_BGOmult=0;
+     coinc_Gemult=0;
      coinc_has_ref=0;
    }
+   void  printCoinc();
+   void  printCurrBranch();
+   void  fillHistograms();
+   void  readCalibration(); // initialses calParameters to 0
+   void  readTimeShifts();  // initialises timeshifts to -10000
+   double nrjCal(int this_label, int this_nrj);
+   bool  isBGO(int this_label);
 
-   ClassDef(NuballEventBuilder,0);
+
+   ClassDef(NuBall_eventbuilder,0);
 
 };
 
 #endif
 
-#ifdef NuballEventBuilder_cxx
-void NuballEventBuilder::Init(TTree *tree)
+#ifdef NuBall_eventbuilder_cxx
+void NuBall_eventbuilder::Init(TTree *tree)
 {
    // The Init() function is called when the selector needs to initialize
    // a new tree or chain. Typically here the reader is initialized.
@@ -99,7 +122,7 @@ void NuballEventBuilder::Init(TTree *tree)
    fReader.SetTree(tree);
 }
 
-Bool_t NuballEventBuilder::Notify()
+Bool_t NuBall_eventbuilder::Notify()
 {
    // The Notify() function is called when a new file is opened. This
    // can be either for a new TTree in a TChain or when when a new TTree
@@ -111,4 +134,4 @@ Bool_t NuballEventBuilder::Notify()
 }
 
 
-#endif // #ifdef NuballEventBuilder_cxx
+#endif // #ifdef NuBall_eventbuilder_cxx
