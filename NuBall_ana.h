@@ -10,9 +10,10 @@
 
 #define MAX_ITEMS 20
 #define HIST_MIN 3
-#define BGO_VETO_THRESH 1000
-#define BGO_GE_WINDOW_LOW 40
-#define BGO_GE_WINDOW_HI  200
+#define GEGE_WINDOW_LOW -200
+#define GEGE_WINDOW_HI   200
+#define ADDBACK 1
+
 
 #include <TROOT.h>
 #include <TChain.h>
@@ -23,6 +24,7 @@
 #include <TTreeReaderArray.h>
 #include <TH1.h>
 #include <TH2.h>
+#include "Clover.h"
 
 
 // Headers needed by this particular selector
@@ -45,18 +47,19 @@ public :
    TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
    TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
 
-   Int_t BGOveto[MAX_ITEMS];
-
+   Clover *clover[5];
+   Long64_t dt;
    TH1D* Ge_sum;
    TH1D* BGO_sum;
-   TH2D* Energy;
+
    TH2D* Ge_CompSupSum;
    TH2D* Ge_BGOvetoSum;
-   TH1D *Ge_CompSup[4];
-   TH1D *Ge_BGOveto[4];
-   TH1D *Ge_single[4];
 
-   TH2D* GeBGO;
+   TH1D *Ge_AddSum;
+   TH1D *Ge_CompSupAddSum;
+
+   TH2D *GeGe;
+   TH2D *GeGe_Add;
 
    TH2D *dt1_BGO1_Ge;
    TH2D *dt1_BGO2_Ge;
