@@ -52,27 +52,14 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    Ge_CompSupSum = new TH2D("Ge_CompSup","Ge Compton suppressed",8000,0,4000,50,0,50) ;
    Ge_BGOvetoSum = new TH2D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000,50,0,50);
 
-   Ge_AddSum = new TH1D("Ge_AddSum", "Ge add-back sum", 8000,0,4000);
-   Ge_CompSupAddSum = new TH1D("Ge_CompSupAddSum", "Ge Compton suppressed add-back sum", 8000,0,4000);
+   GeGe = new TH2D("GeGe","Ge-Ge coincidence matrix", 4000,0,2000,4000,0,2000);
+   GeGe_dt = new TH1D("GeGe_dt","Ge-Ge dt", 500,-2000,2000);
 
-   GeGe = new TH2D("GeGe","Ge-Ge coincidence matrix - no add-back", 4000,0,2000,4000,0,2000);
-   GeGe_Add = new TH2D("GeGe_Add","Ge-Ge coincidence matrix - add-back", 4000,0,2000,4000,0,2000);
-
-   dt1_BGO1_Ge = new TH2D ("dt1_BGO1_Ge", "Det1, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt1_BGO2_Ge = new TH2D ("dt1_BGO2_Ge", "Det1, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt2_BGO1_Ge = new TH2D ("dt2_BGO1_Ge", "Det2, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt2_BGO2_Ge = new TH2D ("dt2_BGO2_Ge", "Det2, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt3_BGO1_Ge = new TH2D ("dt3_BGO1_Ge", "Det3, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt3_BGO2_Ge = new TH2D ("dt3_BGO2_Ge", "Det3, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt4_BGO1_Ge = new TH2D ("dt4_BGO1_Ge", "Det4, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-   dt4_BGO2_Ge = new TH2D ("dt4_BGO2_Ge", "Det4, BGO-Ge time difference", 512, -2048, 2048, 4,0,4);
-
-
-   clover[0] = new Clover(0,  9,10,11,12,  5, 6);
-   clover[1] = new Clover(1, 15,16,17,18, 13,14);
-   clover[2] = new Clover(2, 21,22,23,24, 19,20);
-   clover[3] = new Clover(3, 27,28,29,30, 25,26);
-   clover[4] = new Clover(4, 33,34,35,36, 31,32);//no BGO shield!
+   clover[0] = new Clover(0,  9,10,11,12,  5, 6, ADDBACK);
+   clover[1] = new Clover(1, 15,16,17,18, 13,14, ADDBACK);
+   clover[2] = new Clover(2, 21,22,23,24, 19,20, ADDBACK);
+   clover[3] = new Clover(3, 27,28,29,30, 25,26, ADDBACK);
+   clover[4] = new Clover(4, 33,34,35,36, 31,32, ADDBACK);//no BGO shield!
    
 
    printf("starting...\n");
@@ -137,20 +124,36 @@ Bool_t NuBall_ana::Process(Long64_t entry)
    }
 
    int det2;
-   for (det=0; det<4; det++) {
-      for (det2=det+1; det2<4; det2++){ //only till 4, don't include the one without BGO
-         dt = clover[det]->CloverTime - clover[det2]->CloverTime;
-         if (clover[det]->hasGe && clover[det2]->hasGe
-         && GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
-            if(!clover[det]->didAddBack && !clover[det2]->didAddBack) {
-               GeGe->Fill(clover[det]->CloverEnergy, clover[det2]->CloverEnergy);
-               GeGe->Fill(clover[det2]->CloverEnergy, clover[det]->CloverEnergy);
-            }
-               GeGe_Add->Fill(clover[det]->CloverEnergy, clover[det2]->CloverEnergy);
-               GeGe_Add->Fill(clover[det2]->CloverEnergy, clover[det]->CloverEnergy);
-         }         
+   
+   if (ADDBACK) {
+      for (det=0; det<4; det++) {
+         for (det2=det+1; det2<4; det2++){ //only till 4, don't include the one without BGO
+            dt = clover[det]->AddBackTime - clover[det2]->AddBackTime;
+            if (clover[det]->hasGe && clover[det2]->hasGe) {
+               GeGe_dt->Fill(dt);
+               if (GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
+                  GeGe->Fill(clover[det]->AddBackEnergy, clover[det2]->AddBackEnergy);
+                  GeGe->Fill(clover[det2]->AddBackEnergy, clover[det]->AddBackEnergy);
+               }
+            }         
+         }
       }
-   }   
+   } else {
+      for (det=0; det<*mult_ge; det++) {
+         if (GeLabel[i] > 32) //don't include the one without BGO
+            continue;
+         for (det2=det+1; det2<*mult_ge; det2++){ 
+            if(GeLabel[det2] > 32)//don't include the one without BGO
+               continue;
+            dt = GeTime[det] - GeTime[det2];
+            GeGe_dt->Fill(dt);
+            if (GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
+               GeGe->Fill(GeNrj[det], GeNrj[det2]);
+               GeGe->Fill(GeNrj[det2], GeNrj[det]);
+            }
+         }
+      }
+   }
 
    return kTRUE;
 }
@@ -168,34 +171,22 @@ void NuBall_ana::Terminate()
    // The Terminate() function is the last function to be called during
    // a query. It always runs on the client, it can be used to present
    // the results graphically or save the results to file.
+   printf("Writing histograms...\n");
    int i;
+
    Ge_sum->Write();
    BGO_sum->Write();
-
    Ge_CompSupSum->Write();
    Ge_BGOvetoSum->Write();
-
-   Ge_AddSum->Write();
-   Ge_CompSupAddSum->Write();
-
    GeGe->Write();
-   GeGe_Add->Write();
-
-   dt1_BGO1_Ge->Write();
-   dt1_BGO2_Ge->Write();
-   dt2_BGO1_Ge->Write();
-   dt2_BGO2_Ge->Write();
-   dt3_BGO1_Ge->Write();
-   dt3_BGO2_Ge->Write();
-   dt4_BGO1_Ge->Write();
-   dt4_BGO2_Ge->Write();
-
+   GeGe_dt->Write();
    for (i=0; i<5; i++) {
       clover[i]->WriteHistograms();
 
    }
 
    OutFile->Close();
+      printf("Done.\n");
 }
 
 

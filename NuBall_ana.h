@@ -12,7 +12,7 @@
 #define HIST_MIN 3
 #define GEGE_WINDOW_LOW -200
 #define GEGE_WINDOW_HI   200
-#define ADDBACK 1
+#define ADDBACK 0
 
 
 #include <TROOT.h>
@@ -59,16 +59,6 @@ public :
    TH1D *Ge_CompSupAddSum;
 
    TH2D *GeGe;
-   TH2D *GeGe_Add;
-
-   TH2D *dt1_BGO1_Ge;
-   TH2D *dt1_BGO2_Ge;
-   TH2D *dt2_BGO1_Ge;
-   TH2D *dt2_BGO2_Ge;
-   TH2D *dt3_BGO1_Ge;
-   TH2D *dt3_BGO2_Ge;
-   TH2D *dt4_BGO1_Ge;
-   TH2D *dt4_BGO2_Ge;
    
    TFile* OutFile;
 

@@ -5,7 +5,7 @@
 #define BGO_VETO_THRESH 5
 #define BGO_GE_WINDOW_LOW -200
 #define BGO_GE_WINDOW_HI  200
-#define ADDBACK_THRESH 20
+#define ADDBACK_THRESH 20           //must be >= 0!
 #define ADDBACK_WINDOW_LOW -400
 #define ADDBACK_WINDOW_HI   400
 
@@ -24,13 +24,13 @@ public:
    int detNr;
    int hasGe;
    int hasBgo;
-   bool didAddBack;
+   bool isGood;
    bool hasVeto;
 
    Double_t dt;
 
-   Long64_t CloverTime;
-   Double_t CloverEnergy;
+   Long64_t AddBackTime;    //Only really meaningful with AddBack enabled
+   Double_t AddBackEnergy;  //Only really meaningful with AddBack enabled
 
    Long64_t GeTime[4];
    Double_t GeEnergy[4];
@@ -38,19 +38,17 @@ public:
    Long64_t BgoTime[2];
    Double_t BgoEnergy[2];
 
-
-
-   TH1D hGe_BgoVeto; // only from events where no add-back was done, vetoed Ge gammas
-   TH1D hGe_single; // all Ge gammas, multi-hit not added back
-   TH1D hGe_noAdd; //only non-add-back events
-   TH1D hGe_Add; // only add-back events
-   TH1D hGe_CompSup; // only from events where no add-back was done, compton suppressed
-   TH1D hGe_CompSupAdd;// only compton suppressed add-back events.
-   TH1D hBgo_single; //
-   TH2D hsubdet; // all segments and bgos seperately
-   TH2D hGeBgo; // coinc. matrix of Bgo and vetoed Ge gammas
+   TH1D hGeMult;
+   TH2D hsubdet;     //- Always has all the events (all multiplicities)
+   TH1D hGe_single;  //-
+   TH1D hBgo_single; //-
+   TH1D hGe_BgoVeto; //+ From here on depending on useAddBack. If ON:
+   TH1D hGe_CompSup; //+ Spectra are only multiplicty 1 and 2 per detector. mult > 2 are discarded
+   TH2D hGeBgo;      //+ as well as mult 2 events with diagonal hit pattern.
+   TH1D hAddBackdt[4];
+   TH1D hGeBgodt;
  
-   Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2);
+   Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback = 1);
    ~Clover() {};
    void reset();
    void PrintSetting();
