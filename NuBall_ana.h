@@ -10,8 +10,9 @@
 
 #define MAX_ITEMS 20
 #define HIST_MIN 3
-#define GEGE_WINDOW_LOW -200
-#define GEGE_WINDOW_HI   200
+#define NCLOVER 5
+#define GEGE_WINDOW_LOW -50
+#define GEGE_WINDOW_HI   50
 #define ADDBACK 0
 
 
@@ -47,19 +48,24 @@ public :
    TTreeReaderValue<Int_t> mult_ge = {fReader, "mult_ge"};
    TTreeReaderValue<Bool_t> has_ref = {fReader, "has_ref"};
 
-   Clover *clover[5];
-   Long64_t dt;
-   TH1D* Ge_sum;
-   TH1D* BGO_sum;
 
-   TH2D* Ge_CompSupSum;
-   TH2D* Ge_BGOvetoSum;
+   Clover *clover[NCLOVER];
+   Long64_t dt;
+   uint32_t Clover_hitpat;
+   
+   TH1D* Ge_tot;
+   TH1D* BGO_tot;
+
+   TH1D* Ge_CompSupSum;
+   TH1D* Ge_BGOvetoSum;
+   TH1D* Ge_sum;   
 
    TH1D *Ge_AddSum;
    TH1D *Ge_CompSupAddSum;
 
    TH2D *GeGe;
-   
+   TH2D *GeGe_CompSup;
+   TH1D *GeGe_dt;
    TFile* OutFile;
 
    NuBall_ana(TTree * /*tree*/ =0) { }

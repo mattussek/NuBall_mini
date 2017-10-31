@@ -48,13 +48,21 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    OutFile->cd();
 
    Ge_sum = new TH1D("Ge_sum","Germanium Energy Sum",8000,0,4000);
-   BGO_sum = new TH1D("BGO_sum","BGO Energy Sum",8000,0,4000);
-   Ge_CompSupSum = new TH2D("Ge_CompSup","Ge Compton suppressed",8000,0,4000,50,0,50) ;
-   Ge_BGOvetoSum = new TH2D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000,50,0,50);
+   Ge_tot = new TH1D("Ge_tot","Germanium Energy Total",8000,0,4000);
+   BGO_tot = new TH1D("BGO_tot","BGO Energy Total",8000,0,4000);
+   Ge_CompSupSum = new TH1D("Ge_CompSup","Ge Compton suppressed",8000,0,4000);
+   Ge_BGOvetoSum = new TH1D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000);
 
    GeGe = new TH2D("GeGe","Ge-Ge coincidence matrix", 4000,0,2000,4000,0,2000);
+   GeGe_CompSup = new TH2D("GeGe_CompSup","Ge-Ge coincidence matrix, compton suppressed", 4000,0,2000,4000,0,2000);
    GeGe_dt = new TH1D("GeGe_dt","Ge-Ge dt", 500,-2000,2000);
 
+   if (ADDBACK) {
+      printf("AddBack is ON.\n");
+   } else {
+      printf("AddBack is OFF.\n");
+   }   
+   
    clover[0] = new Clover(0,  9,10,11,12,  5, 6, ADDBACK);
    clover[1] = new Clover(1, 15,16,17,18, 13,14, ADDBACK);
    clover[2] = new Clover(2, 21,22,23,24, 19,20, ADDBACK);
@@ -62,7 +70,7 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    clover[4] = new Clover(4, 33,34,35,36, 31,32, ADDBACK);//no BGO shield!
    
 
-   printf("starting...\n");
+   printf("Init done.\nSorting...\n");
 }
 
 void NuBall_ana::SlaveBegin(TTree * /*tree*/)
@@ -96,65 +104,57 @@ Bool_t NuBall_ana::Process(Long64_t entry)
    fReader.SetEntry(entry);
 
 
-   int i,j, det;
+   int i,j, det, det2;
    int bgoCount= *mult_bgo, geCount = *mult_ge;
    reset();
+///Fill the Clover objects with event data
    for( i=0; i<*mult_bgo; i++)  {
       if (BGONrj[i] < HIST_MIN)
          continue;
-      BGO_sum->Fill(BGONrj[i]);
-      for (det=0; det<5; det++) {
+      BGO_tot->Fill(BGONrj[i]);
+      for (det=0; det<NCLOVER; det++) {
          if (clover[det]->ProcessBgo(BGOLabel[i],  BGONrj[i], BGOTime[i]))
             break;
       } 
    }
-
    for( i=0; i<*mult_ge; i++)  {
       if (GeNrj[i] < HIST_MIN)
          continue;
-      Ge_sum->Fill(GeNrj[i]);
-      for (det=0; det<5; det++) {
+      Ge_tot->Fill(GeNrj[i]);
+      for (det=0; det<NCLOVER; det++) {
          if (clover[det]->ProcessGe(GeLabel[i], GeNrj[i], GeTime[i]))
             break;
       }
    }
-      
-   for (det=0; det<5; det++) {
-      clover[det]->AnalyseEvent();
+///Do compton suppression (and addback if enabled) in the Clover objects
+   int tryv;
+   for (det=0; det<NCLOVER; det++) {
+      tryv = clover[det]->AnalyseEvent();
+      if(tryv) {
+         Clover_hitpat += 1 << det;
+      }
    }
-
-   int det2;
-   
-   if (ADDBACK) {
-      for (det=0; det<4; det++) {
-         for (det2=det+1; det2<4; det2++){ //only till 4, don't include the one without BGO
-            dt = clover[det]->AddBackTime - clover[det2]->AddBackTime;
-            if (clover[det]->hasGe && clover[det2]->hasGe) {
+///From here on, use Clover[i].CloverEnergy and CloverTime as energy and time for each Clover detector
+///Addback will have been done, if enabled. BGO veto can be checked from Clover[i].hasVeto
+///Fill coincidence matrices here.
+   for (det=0; det<NCLOVER; det++) {
+      if ( clover[det]->CloverEnergy > 0) {
+         for (det2=det+1; det2<NCLOVER; det2++) {
+            if ( clover[det2]->CloverEnergy > 0) {
+               dt = clover[det]->CloverTime - clover[det2]->CloverTime;
                GeGe_dt->Fill(dt);
                if (GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
-                  GeGe->Fill(clover[det]->AddBackEnergy, clover[det2]->AddBackEnergy);
-                  GeGe->Fill(clover[det2]->AddBackEnergy, clover[det]->AddBackEnergy);
+                  GeGe->Fill(clover[det]->CloverEnergy, clover[det2]->CloverEnergy);
+                  GeGe->Fill(clover[det2]->CloverEnergy, clover[det]->CloverEnergy);
+                  if (!clover[det]->hasVeto && !clover[det2]->hasVeto) {
+                     GeGe_CompSup->Fill(clover[det]->CloverEnergy, clover[det2]->CloverEnergy);
+                     GeGe_CompSup->Fill(clover[det2]->CloverEnergy, clover[det]->CloverEnergy);
+                  }
                }
-            }         
-         }
-      }
-   } else {
-      for (det=0; det<*mult_ge; det++) {
-         if (GeLabel[i] > 32) //don't include the one without BGO
-            continue;
-         for (det2=det+1; det2<*mult_ge; det2++){ 
-            if(GeLabel[det2] > 32)//don't include the one without BGO
-               continue;
-            dt = GeTime[det] - GeTime[det2];
-            GeGe_dt->Fill(dt);
-            if (GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
-               GeGe->Fill(GeNrj[det], GeNrj[det2]);
-               GeGe->Fill(GeNrj[det2], GeNrj[det]);
             }
          }
       }
    }
-
    return kTRUE;
 }
 
@@ -172,18 +172,24 @@ void NuBall_ana::Terminate()
    // a query. It always runs on the client, it can be used to present
    // the results graphically or save the results to file.
    printf("Writing histograms...\n");
-   int i;
+   int det;
 
+   Ge_tot->Write();
+   BGO_tot->Write();
+   
+   for (det=0; det<NCLOVER; det++) {
+      Ge_sum->Add(&clover[det]->hGe,1);
+      Ge_CompSupSum->Add(&clover[det]->hGe_CompSup,1);
+      Ge_BGOvetoSum->Add(&clover[det]->hGe_BgoVeto,1);
+      clover[det]->WriteHistograms(OutFile);
+   }
    Ge_sum->Write();
-   BGO_sum->Write();
    Ge_CompSupSum->Write();
    Ge_BGOvetoSum->Write();
+   
    GeGe->Write();
+   GeGe_CompSup->Write();
    GeGe_dt->Write();
-   for (i=0; i<5; i++) {
-      clover[i]->WriteHistograms();
-
-   }
 
    OutFile->Close();
       printf("Done.\n");
@@ -193,10 +199,11 @@ void NuBall_ana::Terminate()
 void NuBall_ana::reset ()
 {
    int i;
-   for (i=0; i<5; i++) {
+   for (i=0; i<NCLOVER; i++) {
       clover[i]->reset();
    }
    dt = -10000;
+   Clover_hitpat = 0;
 }
 
 

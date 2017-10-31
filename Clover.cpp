@@ -15,14 +15,16 @@ Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo
       hGe_CompSup = TH1D (histname, "Ge Compton suppressed (one det)",8000,0,4000);
       sprintf(histname, "Ge_BGOveto_det%d", number);
       hGe_BgoVeto = TH1D(histname,"Ge vetoed by BGO (one det)",8000,0,4000) ;
-      sprintf(histname, "Ge_single_det%d", number);
-      hGe_single = TH1D(histname,"Ge single (one det)",8000,0,4000);
+      sprintf(histname, "Ge_det%d", number);
+      hGe = TH1D(histname,"Ge (one det)",8000,0,4000) ;      
+      sprintf(histname, "Ge_tot_det%d", number);
+      hGe_single = TH1D(histname,"Ge total (one det)",8000,0,4000);
 
       sprintf(histname, "Ge_mult_det%d", number);
       hGeMult = TH1D(histname, "Ge multiplicity (one det)", 100,0,100);
 
-      sprintf(histname, "Bgo_single_det%d", number);
-      hBgo_single = TH1D(histname,"Bgo single",8000,0,4000);
+      sprintf(histname, "Bgo_tot_det%d", number);
+      hBgo_single = TH1D(histname,"Bgo total",8000,0,4000);
       sprintf(histname, "GeBgo_det%d", number);
       hGeBgo = TH2D(histname,"Ge-BGO coincidenc matrix (one det)",
                            8000,0,4000, 8000,0,4000);
@@ -37,6 +39,13 @@ Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo
       sprintf(histname, "hGeBgodt_det%d", number);
       hGeBgodt = TH1D(histname,"dt Ge-BGO (one det)", 500,-2000,2000);
 
+      sprintf(histname, "hdt_det%d", number);
+      hdt = TH1D(histname,"dt Ge-Ge (one det)", 500,-2000,2000);
+      
+      sprintf(histname, "hGeGe_det%d", number);
+      hGeGe = TH2D(histname,"Ge-Ge coinc. (one det)",
+                           4000,0,2000, 4000,0,2000);
+      
       hasGe=1;//set to 1 in order for first reset to work.
       reset();
 
@@ -59,27 +68,40 @@ void Clover::reset()
          BgoTime[i] = -10000;
          BgoEnergy[i] = -1;
       }
-      AddBackEnergy = -1;
-      AddBackTime = -10000;
+      CloverEnergy = -1;
+      CloverTime = -10000;
       dt = -10000;
    }
    return;
 }
 
-void Clover::WriteHistograms()
+void Clover::WriteHistograms(TFile *thisFile)
 {
+   thisFile->cd();
+   char dirname[200];
+   sprintf(dirname, "Clover%02d_hist", detNr);
+   thisFile->mkdir(dirname);
+   thisFile->cd(dirname);
+
+   hGe.Add(&hGe_CompSup, 1);
+   hGe.Add(&hGe_BgoVeto, 1);
+   hGe.Write();
    hGe_CompSup.Write();
    hGe_BgoVeto.Write();
    hGe_single.Write();
    hBgo_single.Write();
    hsubdet.Write();
-   hGeBgo.Write();
    hGeMult.Write();
    int i,j;
    for (i=0; i<4; i++) {
       hAddBackdt[i].Write();
    }
+   hGeBgo.Write();
    hGeBgodt.Write();
+   hdt.Write();
+   hGeGe.Write();
+   
+   thisFile->cd();
 }
 
 bool Clover::ProcessGe(int this_label, Double_t this_energy, Long64_t this_time) 
@@ -118,92 +140,106 @@ bool Clover::ProcessBgo(int this_label, Double_t this_energy, Long64_t this_time
 bool Clover::AnalyseEvent()
 {
    int i,j;
-
    hGeMult.Fill(hasGe);
    
    if (hasGe < 1) {
-      AddBackEnergy = -1;
-      AddBackTime = -10000;
+      CloverEnergy = -1;
+      CloverTime = -10000;
       return isGood;
    }
 
+   if (hasGe > 1) {
+      for (i=0; i<4; i++) {
+         if (GeEnergy[i] < 0)
+            continue;
+         for (j=i+1; j<4; j++) {
+            if (GeEnergy[j] < 0)
+               continue;
+            dt = GeTime[i] - GeTime[(i+1)%4];
+            hdt.Fill(dt);
+            if(ADDBACK_WINDOW_LOW < dt
+                && ADDBACK_WINDOW_HI > dt) {
+               hGeGe.Fill(GeEnergy[i], GeEnergy[j]);
+               hGeGe.Fill(GeEnergy[j], GeEnergy[i]);
+            }
+         }
+      }
+   }
+   dt = -10000;
    
 ///IF ADDBACK ENABLED
    if (useAddBack) {
-      if (hasGe > 2) { //Skip events with Ge mult>2
-         AddBackEnergy = -1;
-         AddBackTime = -10000;
-      
-         return isGood;  
+      if (hasGe > 2) { //Skip events with Ge mult>2      
+         return 0;  
       }
       //Do AddBack (or find the single gamma if mult==1)
       for (i=0; i<4; i++) {
          if (GeEnergy[i] > 0) {
             if (hasGe == 2) {
-               printf("addback\n");
-               dt = GeEnergy[i] - GeEnergy[(i+1)%4];
+               dt = GeTime[i] - GeTime[(i+1)%4];
                if( GeEnergy[i] > ADDBACK_THRESH
                 && GeEnergy[(i+1)%4] > ADDBACK_THRESH) {
                      hAddBackdt[i].Fill(dt);
                   if(ADDBACK_WINDOW_LOW < dt
                 && ADDBACK_WINDOW_HI > dt) {
-                     AddBackEnergy = GeEnergy[(i+1)%4] + GeEnergy[i];
-                     AddBackTime = GeTime[i];
-                     isGood=1;
+                     CloverEnergy = GeEnergy[(i+1)%4] + GeEnergy[i];
+                     CloverTime = GeTime[i];
                      break;
                   }
                } else {
                   i++;
                }
             } else {
-               AddBackEnergy = GeEnergy[i];
-               AddBackTime = GeTime[i];
-               isGood=1;
+               CloverEnergy = GeEnergy[i];
+               CloverTime = GeTime[i];
                break;
             }
          }
       }
       for (i=0; i<2; i++) {
          if (BgoEnergy[i] > BGO_VETO_THRESH) {
-            dt = AddBackTime - BgoTime[i];
+            dt = CloverTime - BgoTime[i];
             hGeBgodt.Fill(dt);
             if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
-               hGeBgo.Fill(AddBackEnergy, BgoEnergy[i]);
-               hGe_BgoVeto.Fill(AddBackEnergy);
+               hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
+               hGe_BgoVeto.Fill(CloverEnergy);
+               hasVeto = 1;
+               break;
+            }
+         }
+      }
+      if(hasVeto == 0){
+         hGe_CompSup.Fill(CloverEnergy);
+      }
+      return 1;
+   }
+///END IF ADDBACK ENABLED      
+///IF ADDBACK DISABLED     
+   if (!useAddBack && hasGe==1) {
+      for(j=0; j<4; j++) {
+         if (GeEnergy[j] < 0)
+            continue;
+         CloverTime = GeTime[j];
+         CloverEnergy = GeEnergy[j];
+         break;
+      }
+      for (i=0; i<2; i++) {
+         if (BgoEnergy[i] > BGO_VETO_THRESH) {
+            dt = CloverTime - BgoTime[i];
+            if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
+               hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
+               hGe_BgoVeto.Fill(CloverEnergy);
                hasVeto = 1;
             }
          }
       }
-      if(!hasVeto){
-         hGe_CompSup.Fill(AddBackEnergy);
+      if(hasVeto == 0) {
+         hGe_CompSup.Fill(CloverEnergy);
       }
-      return isGood;
-   }
-///END IF ADDBACK ENABLED      
-///IF ADDBACK DISABLED     
-   else {
-      for(j=0; j<4; j++) {
-         if (GeEnergy[j] < 0)
-            continue;
-         for (i=0; i<2; i++) {
-            if (BgoEnergy[i] > BGO_VETO_THRESH) {
-               dt = GeTime[j] - BgoTime[i];
-               if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
-                  hGeBgo.Fill(GeEnergy[j], BgoEnergy[i]);
-                  hGe_BgoVeto.Fill(AddBackEnergy);
-                  hasVeto = 1;
-               }
-            }
-         }
-         if(!hasVeto) {
-            hGe_CompSup.Fill(GeEnergy[j]);
-         }
-      }
-      return hasGe;
+      return 1;
    }
 ///END IF ADDBACK DISABLED
-
-//should never get here
+//return 0 if none of the above returns.
 return 0;
 }
 
