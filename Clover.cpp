@@ -1,6 +1,7 @@
 #include "Clover.h"
 
-Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback = 1) {
+Clover::Clover(int ring, int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback) {
+      ringNr = ring;
       detNr = number;
       GeLabel[0] = GeA;
       GeLabel[1] = GeB;
@@ -12,26 +13,44 @@ Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo
       char histname [200];
 
       sprintf(histname, "Ge_CompSup_det%d", number);
-      hGe_CompSup = TH1D (histname, "Ge Compton suppressed",8000,0,4000);
+      hGe_CompSup = TH1D (histname, "Ge Compton suppressed (one det)",8000,0,4000);
       sprintf(histname, "Ge_BGOveto_det%d", number);
-      hGe_BgoVeto = TH1D(histname,"Ge vetoed by BGO",8000,0,4000) ;
-      sprintf(histname, "Ge_single_det%d", number);
-      hGe_single = TH1D(histname,"Ge single",8000,0,4000);
-      sprintf(histname, "Ge_noAdd_det%d", number);
-      hGe_noAdd = TH1D(histname,"Ge no add-back",8000,0,4000);
-      sprintf(histname, "Ge_Add_det%d", number);
-      hGe_Add = TH1D(histname,"Ge add-back",8000,0,4000);
-      sprintf(histname, "Ge_CompSupAdd_det%d", number);
-      hGe_CompSupAdd = TH1D(histname,"Ge Compton suppressed add-back",8000,0,4000);
-      sprintf(histname, "Bgo_single_det%d", number);
-      hBgo_single = TH1D(histname,"Bgo single",8000,0,4000);
+      hGe_BgoVeto = TH1D(histname,"Ge vetoed by BGO (one det)",8000,0,4000) ;
+      sprintf(histname, "Ge_det%d", number);
+      hGe = TH1D(histname,"Ge (one det)",8000,0,4000) ;      
+      sprintf(histname, "Ge_tot_det%d", number);
+      hGe_single = TH1D(histname,"Ge total (one det)",8000,0,4000);
+
+      sprintf(histname, "Ge_mult_det%d", number);
+      hGeMult = TH1D(histname, "Ge multiplicity (one det)", 100,0,100);
+
+      sprintf(histname, "Bgo_tot_det%d", number);
+      hBgo_single = TH1D(histname,"Bgo total",8000,0,4000);
       sprintf(histname, "GeBgo_det%d", number);
       hGeBgo = TH2D(histname,"Ge-BGO coincidenc matrix (one det)",
                            8000,0,4000, 8000,0,4000);
       sprintf(histname, "subdet_det%d", number);
       hsubdet = TH2D(histname,"Energy spectra (one det)",
                            8000,0,4000, 6,0,6);
+#if MAKE_BGO_GE_MULT
+      sprintf(histname, "hBgoGeMult_det%d", number);
+      hBgoGeMult = TH2D (histname, "Bgo-Germanium multiplicity", 10,0,10, 10,0,10);
+#endif
+      int i,j;
+      for (i =0; i<4; i++) {
+         sprintf(histname, "hAddBackdt_%d_%d_det%d", i, (i+1)%4, detNr);
+         hAddBackdt[i] = TH1D(histname, "addback dt", 500,-2000,2000);
+      }
+      sprintf(histname, "hGeBgodt_det%d", number);
+      hGeBgodt = TH1D(histname,"dt Ge-BGO (one det)", 500,-2000,2000);
 
+      sprintf(histname, "hdt_det%d", number);
+      hdt = TH1D(histname,"dt Ge-Ge (one det)", 500,-2000,2000);
+      
+      sprintf(histname, "hGeGe_det%d", number);
+      hGeGe = TH2D(histname,"Ge-Ge coinc. (one det)",
+                           4000,0,2000, 4000,0,2000);
+      
       hasGe=1;//set to 1 in order for first reset to work.
       reset();
 
@@ -44,8 +63,9 @@ void Clover::reset()
       int i;
       hasGe = 0;
       hasBgo = 0;
-      didAddBack = 0;
+      isGood = 0;
       hasVeto = 0;
+      CloverNr = -1;
       for (i=0; i<4; i++) {
          GeTime[i]  = -10000;
          GeEnergy[i] = -1;
@@ -56,20 +76,41 @@ void Clover::reset()
       }
       CloverEnergy = -1;
       CloverTime = -10000;
+      dt = -10000;
    }
    return;
 }
 
-void Clover::WriteHistograms()
+void Clover::WriteHistograms(TFile *thisFile)
 {
+   thisFile->cd();
+   char dirname[200];
+   sprintf(dirname, "Clover%02d_hist", detNr);
+   thisFile->mkdir(dirname);
+   thisFile->cd(dirname);
+   printf("writing clover%02d hists\n", detNr);
    hGe_CompSup.Write();
    hGe_BgoVeto.Write();
    hGe_single.Write();
-   hGe_Add.Write();
-   hGe_CompSupAdd.Write();
    hBgo_single.Write();
    hsubdet.Write();
+   hGeMult.Write();
+   hGe.Add(&hGe_CompSup, 1);
+   hGe.Add(&hGe_BgoVeto, 1);
+   hGe.Write();
+
+   int i,j;
+   for (i=0; i<4; i++) {
+      hAddBackdt[i].Write();
+   }
    hGeBgo.Write();
+   hGeBgodt.Write();
+   hdt.Write();
+   hGeGe.Write();
+#if MAKE_BGO_GE_MULT
+   hBgoGeMult.Write();
+#endif
+   thisFile->cd();
 }
 
 bool Clover::ProcessGe(int this_label, Double_t this_energy, Long64_t this_time) 
@@ -107,65 +148,143 @@ bool Clover::ProcessBgo(int this_label, Double_t this_energy, Long64_t this_time
 
 bool Clover::AnalyseEvent()
 {
-   int i;
+   int i,j;
+   hGeMult.Fill(hasGe);
+   
    if (hasGe < 1) {
       CloverEnergy = -1;
       CloverTime = -10000;
-      return 0;
+      return isGood;
    }
-   for (i=0; i<4; i++) {
-      if (GeEnergy[i] > ADDBACK_THRESH) {
-         //Do add-back only if exactly two Clover segments fired and
-         //the are next neighbours (no diagonal add-back and no triple add-back)
-         if (hasGe == 2 && GeEnergy[(i+1)%4] > ADDBACK_THRESH
-          && ADDBACK_WINDOW_LOW < dt
-          && ADDBACK_WINDOW_HI > dt) {
-             CloverEnergy = GeEnergy[(i+1)%4] + GeEnergy[i];
-             CloverTime = GeTime[i];
-             didAddBack = 1;
-             break;
-         } else {
-             CloverEnergy = GeEnergy[i];
-             CloverTime = GeTime[i];
-             //having no break here means that in case of a mult>2 event,
-             //or if the time doesnt match for a mult==2 event,
-             //CloverEnergy and CloverTime will have the value of the
-             //Segment with the highest ID when leaving the loop.
-         }   
-      }
-   }
-   //have valid CloverTime and CloverEnergy if we get here.
-   for (i=0; i<2; i++) {
-      if (BgoEnergy[i] > BGO_VETO_THRESH) {
-         dt = CloverTime - BgoTime[i];
-         if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
-            hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
-            hGe_BgoVeto.Fill(CloverEnergy);
-            hasVeto = 1;
-         }         
-      }
-   }
-   if (didAddBack) {
-      hGe_Add.Fill(CloverEnergy);
-      if (!hasVeto) {
-         hGe_CompSupAdd.Fill(CloverEnergy);
-      }
-   } else {
-      hGe_noAdd.Fill(CloverEnergy);
-      if (!hasVeto) {
-         hGe_CompSup.Fill(CloverEnergy);
-      } else {
-         hGe_BgoVeto.Fill(CloverEnergy);
-      }
-   }
-   return 1;
 
+   if (hasGe > 1) {
+      for (i=0; i<4; i++) {
+         if (GeEnergy[i] < 0)
+            continue;
+         for (j=i+1; j<4; j++) {
+            if (GeEnergy[j] < 0)
+               continue;
+            dt = GeTime[i] - GeTime[(i+1)%4];
+            hdt.Fill(dt);
+            if(ADDBACK_WINDOW_LOW < dt
+                && ADDBACK_WINDOW_HI > dt) {
+               hGeGe.Fill(GeEnergy[i], GeEnergy[j]);
+               hGeGe.Fill(GeEnergy[j], GeEnergy[i]);
+            }
+         }
+      }
+   }
+   dt = -10000;
+/*#if MAKE_BGO_GE_MULT   
+   for (i=0; i<4; i++) {
+      if (GeEnergy[i] > 0) {
+         for (j=0; j<2; j++) {
+            if (BgoEnergy[j] > BGO_VETO_THRESH) {
+               hBgoGeMult.Fill(j, i);
+            }
+         }
+      }
+   }
+#endif */
+///IF ADDBACK ENABLED
+   if (useAddBack) {
+      if (hasGe > 2) { //Skip events with Ge mult>2      
+         return 0;  
+      }
+      //Do AddBack (or find the single gamma if mult==1)
+      for (i=0; i<4; i++) {
+         if (GeEnergy[i] > 0) {
+            if (hasGe == 2) {
+               dt = GeTime[i] - GeTime[(i+1)%4];
+               if( GeEnergy[i] > ADDBACK_THRESH
+               && GeEnergy[(i+1)%4] > ADDBACK_THRESH) {
+                     hAddBackdt[i].Fill(dt);
+                  if(ADDBACK_WINDOW_LOW < dt
+                  && ADDBACK_WINDOW_HI > dt) {
+                     CloverEnergy = GeEnergy[(i+1)%4] + GeEnergy[i];
+                     CloverTime = GeTime[i];
+                     break;
+                  }
+               } else {
+                  i++;
+               }
+            } else {
+               CloverEnergy = GeEnergy[i];
+               CloverTime = GeTime[i];
+               break;
+            }
+         }
+      }
+      for (i=0; i<2; i++) {
+         if (BgoEnergy[i] > BGO_VETO_THRESH) {
+            dt = CloverTime - BgoTime[i];
+            hGeBgodt.Fill(dt);
+            for (j=0; j<4; j++) {
+               //This assumes that the even crystals are on the side of BGO[0] and the
+               //odd ones on the side of BGO[1]. Check this using hBgoGeMult and change
+               //in call of constructor if necessary
+               if ((j%2) == i && GeEnergy[j] > 0 && BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
+                  hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
+                  hGe_BgoVeto.Fill(CloverEnergy);
+                  hasVeto = 1;
+                  hBgoGeMult.Fill(i,j);
+                  break;
+               }
+            }
+         }
+      }
+      if(hasVeto == 0){
+         hGe_CompSup.Fill(CloverEnergy);
+      }
+      return 1;
+   }
+///END IF ADDBACK ENABLED      
+///IF ADDBACK DISABLED     
+   if (!useAddBack && hasGe==1) {
+      for(j=0; j<4; j++) {
+         if (GeEnergy[j] < 0)
+            continue;
+         CloverTime = GeTime[j];
+         CloverEnergy = GeEnergy[j];
+         CloverNr = j;
+         break;
+      }
+      for (i=0; i<2; i++) {
+         if (BgoEnergy[i] > BGO_VETO_THRESH) {
+            dt = CloverTime - BgoTime[i];
+            //This assumes that the even crystals are on the side of BGO[0] and the
+            //odd ones on the side of BGO[1]. Check this using hBgoGeMult and change
+            //in call of constructor if necessary
+            if ((CloverNr%2) == i && CloverEnergy > 0
+                 && BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
+               hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
+               hGe_BgoVeto.Fill(CloverEnergy);
+               hasVeto = 1;
+               hBgoGeMult.Fill(i, CloverNr);
+               break;
+            }
+         }
+      }
+      if(hasVeto == 0) {
+         hGe_CompSup.Fill(CloverEnergy);
+      }
+      return 1;
+   }
+///END IF ADDBACK DISABLED
+//return 0 if none of the above returns.
+return 0;
 }
 
 void Clover::PrintSetting()
 {
-   printf("det%02d, Ge:(%02d, %02d, %02d, %02d) ; BGO(%02d, %02d)\n", detNr,
+   printf("det%02d, Ge:(%02d, %02d, %02d, %02d) ; BGO(%02d, %02d)", detNr,
            GeLabel[0], GeLabel[1], GeLabel[2], GeLabel[3], BgoLabel[0], BgoLabel[1]);
+   printf("AddBack:");
+   if(useAddBack == 0) {
+      printf("No\n");
+   }else{
+      printf("Yes\n");
+   }
 }
 
 
