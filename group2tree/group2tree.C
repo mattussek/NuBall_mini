@@ -30,8 +30,8 @@
 using namespace std;
 
 
-#define DATAFILENAME "60Co_first_mini_nuball_0001.fast"
-#define ROOTFILENAME "rootfiles/60Co_first_mini_nuball_0001.root"
+#define DATAFILENAME "/media/rudigier/Elements/NuBall_test/RAWDATA/152Eu_mini_nuball_2h_0005.fast"
+#define ROOTFILENAME "152Eu_mini_nuball_2h_0005.root"
 #define LABEL1  1
 #define LABEL2  2
 #define LABEL3  3

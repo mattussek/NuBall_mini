@@ -53,6 +53,7 @@ void NuBall_ana::Begin(TTree * /*tree*/)
    Ge_CompSupSum = new TH1D("Ge_CompSup","Ge Compton suppressed",8000,0,4000);
    Ge_BGOvetoSum = new TH1D("Ge_BGOveto","Ge vetoed by BGO",8000,0,4000);
 
+   GeGetot = new TH2D("GeGetot","Ge-Ge tot coincidence matrix", 4000,0,2000,4000,0,2000);
    GeGe = new TH2D("GeGe","Ge-Ge coincidence matrix", 4000,0,2000,4000,0,2000);
    GeGe_CompSup = new TH2D("GeGe_CompSup","Ge-Ge coincidence matrix, compton suppressed", 4000,0,2000,4000,0,2000);
    GeGe_dt = new TH1D("GeGe_dt","Ge-Ge dt", 500,-2000,2000);
@@ -63,13 +64,15 @@ void NuBall_ana::Begin(TTree * /*tree*/)
       printf("AddBack is OFF.\n");
    }   
    
-   clover[0] = new Clover(0,  9,10,11,12,  5, 6, ADDBACK);
-   clover[1] = new Clover(1, 15,16,17,18, 13,14, ADDBACK);
-   clover[2] = new Clover(2, 21,22,23,24, 19,20, ADDBACK);
-   clover[3] = new Clover(3, 27,28,29,30, 25,26, ADDBACK);
-   clover[4] = new Clover(4, 33,34,35,36, 31,32, ADDBACK);//no BGO shield!
+   clover[0] = new Clover(3, 0,  9,10,12,11,  6, 5, ADDBACK);
+   clover[1] = new Clover(3, 1, 15,16,17,18, 13,14, ADDBACK);
+   clover[2] = new Clover(3, 2, 21,22,23,24, 19,20, ADDBACK);
+   clover[3] = new Clover(3, 3, 27,28,30,29, 25,26, ADDBACK);
+   clover[4] = new Clover(3, 4, 33,34,35,36, 31,32, ADDBACK);//no BGO shield!
    
-
+   for (i=0; i<NCLOVER; i++) {
+      clover[i]->PrintSetting();
+   }
    printf("Init done.\nSorting...\n");
 }
 
@@ -121,9 +124,17 @@ Bool_t NuBall_ana::Process(Long64_t entry)
       if (GeNrj[i] < HIST_MIN)
          continue;
       Ge_tot->Fill(GeNrj[i]);
+      for (j=i+1; j<*mult_ge; j++) {
+         dt = GeTime[j] - GeTime[i];
+         if (GEGE_WINDOW_LOW < dt && GEGE_WINDOW_HI > dt) {
+            GeGetot->Fill(GeNrj[i], GeNrj[j]);
+            GeGetot->Fill(GeNrj[j], GeNrj[i]);
+         }
+      }
+      dt = -10000;
       for (det=0; det<NCLOVER; det++) {
          if (clover[det]->ProcessGe(GeLabel[i], GeNrj[i], GeTime[i]))
-            break;
+             break;
       }
    }
 ///Do compton suppression (and addback if enabled) in the Clover objects
@@ -176,6 +187,7 @@ void NuBall_ana::Terminate()
 
    Ge_tot->Write();
    BGO_tot->Write();
+   GeGetot->Write();
    
    for (det=0; det<NCLOVER; det++) {
       Ge_sum->Add(&clover[det]->hGe,1);

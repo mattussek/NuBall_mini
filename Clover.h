@@ -1,14 +1,22 @@
 #ifndef Clover_h
 #define Clover_h
 
-//add CloverEvent class for eventbuilder later
-#define BGO_VETO_THRESH 5
-#define BGO_GE_WINDOW_LOW -200
-#define BGO_GE_WINDOW_HI  200
-#define ADDBACK_THRESH 5           //must be >= 0!
-#define ADDBACK_WINDOW_LOW -200
-#define ADDBACK_WINDOW_HI   200
+//This is of course not ideal... have this set in NuBall_ana.h! Here only default value...
+#ifndef BGO_SETTINGS
+   #define BGO_SETTINGS
+   #define BGO_VETO_THRESH 5
+   #define BGO_GE_WINDOW_LOW -200
+   #define BGO_GE_WINDOW_HI  200
+#endif
 
+   #define MAKE_BGO_GE_MULT 1
+   
+#ifndef ADDBACK_SETTINGS
+   #define ADDBACK_SETTINGS
+   #define ADDBACK_THRESH 5           //must be >= 0!
+   #define ADDBACK_WINDOW_LOW -200
+   #define ADDBACK_WINDOW_HI 200
+#endif
 
 #include <TH1.h>
 #include <TH2.h>
@@ -21,6 +29,7 @@ private:
    int      BgoLabel[2];
    bool     useAddBack;
 public:
+   int ringNr;
    int detNr;
    int hasGe;
    int hasBgo;
@@ -31,6 +40,7 @@ public:
 
    Long64_t CloverTime;    //Only really meaningful with AddBack enabled
    Double_t CloverEnergy;  //Only really meaningful with AddBack enabled
+   Int_t    CloverNr;
 
    Long64_t GeTime[4];
    Double_t GeEnergy[4];
@@ -45,6 +55,8 @@ public:
    TH1D hBgo_single; //-
    TH1D hGeMult;     //-
    
+   TH2D hBgoGeMult;
+   
    TH1D hGe_BgoVeto; //+ From here on depending on useAddBack. If ON:
    TH1D hGe_CompSup; //+ Spectra are only multiplicty 1 and 2 per detector. mult > 2 are discarded
    TH2D hGeBgo;      //+ as well as mult 2 events with diagonal hit pattern.
@@ -54,7 +66,7 @@ public:
    TH1D hAddBackdt[4];//+    Only filled if addback is ON
    TH1D hGeBgodt;    //+
  
-   Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback = 1);
+   Clover(int ring, int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback = 1);
    ~Clover() {};
    void reset();
    void PrintSetting();

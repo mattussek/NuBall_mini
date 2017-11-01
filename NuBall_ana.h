@@ -8,12 +8,29 @@
 #ifndef NuBall_ana_h
 #define NuBall_ana_h
 
+#define ADDBACK 1
+
 #define MAX_ITEMS 20
 #define HIST_MIN 3
 #define NCLOVER 5
 #define GEGE_WINDOW_LOW -50
 #define GEGE_WINDOW_HI   50
-#define ADDBACK 0
+
+//These are also defined in classes Clover.h and Phase1.h, but
+//guarded, so the definitions there are only default values.
+//These are the ones that will be used by the compiler.
+#ifndef BGO_SETTINGS
+   #define BGO_SETTINGS
+   #define BGO_VETO_THRESH 5
+   #define BGO_GE_WINDOW_LOW -200
+   #define BGO_GE_WINDOW_HI  200
+#endif
+#ifndef ADDBACK_SETTINGS
+   #define ADDBACK_SETTINGS
+   #define ADDBACK_THRESH 5           //must be >= 0!
+   #define ADDBACK_WINDOW_LOW -200
+   #define ADDBACK_WINDOW_HIGH 200
+#endif
 
 
 #include <TROOT.h>
@@ -26,6 +43,8 @@
 #include <TH1.h>
 #include <TH2.h>
 #include "Clover.h"
+#include "Phase1.h"
+#include "LaBr.h"
 
 
 // Headers needed by this particular selector
@@ -63,6 +82,7 @@ public :
    TH1D *Ge_AddSum;
    TH1D *Ge_CompSupAddSum;
 
+   TH2D *GeGetot;
    TH2D *GeGe;
    TH2D *GeGe_CompSup;
    TH1D *GeGe_dt;

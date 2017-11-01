@@ -1,6 +1,7 @@
 #include "Clover.h"
 
-Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback) {
+Clover::Clover(int ring, int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo2, bool addback) {
+      ringNr = ring;
       detNr = number;
       GeLabel[0] = GeA;
       GeLabel[1] = GeB;
@@ -31,6 +32,10 @@ Clover::Clover(int number, int GeA, int GeB, int GeC, int GeD, int Bgo1, int Bgo
       sprintf(histname, "subdet_det%d", number);
       hsubdet = TH2D(histname,"Energy spectra (one det)",
                            8000,0,4000, 6,0,6);
+#if MAKE_BGO_GE_MULT
+      sprintf(histname, "hBgoGeMult_det%d", number);
+      hBgoGeMult = TH2D (histname, "Bgo-Germanium multiplicity", 10,0,10, 10,0,10);
+#endif
       int i,j;
       for (i =0; i<4; i++) {
          sprintf(histname, "hAddBackdt_%d_%d_det%d", i, (i+1)%4, detNr);
@@ -60,6 +65,7 @@ void Clover::reset()
       hasBgo = 0;
       isGood = 0;
       hasVeto = 0;
+      CloverNr = -1;
       for (i=0; i<4; i++) {
          GeTime[i]  = -10000;
          GeEnergy[i] = -1;
@@ -82,16 +88,17 @@ void Clover::WriteHistograms(TFile *thisFile)
    sprintf(dirname, "Clover%02d_hist", detNr);
    thisFile->mkdir(dirname);
    thisFile->cd(dirname);
-
-   hGe.Add(&hGe_CompSup, 1);
-   hGe.Add(&hGe_BgoVeto, 1);
-   hGe.Write();
+   printf("writing clover%02d hists\n", detNr);
    hGe_CompSup.Write();
    hGe_BgoVeto.Write();
    hGe_single.Write();
    hBgo_single.Write();
    hsubdet.Write();
    hGeMult.Write();
+   hGe.Add(&hGe_CompSup, 1);
+   hGe.Add(&hGe_BgoVeto, 1);
+   hGe.Write();
+
    int i,j;
    for (i=0; i<4; i++) {
       hAddBackdt[i].Write();
@@ -100,7 +107,9 @@ void Clover::WriteHistograms(TFile *thisFile)
    hGeBgodt.Write();
    hdt.Write();
    hGeGe.Write();
-   
+#if MAKE_BGO_GE_MULT
+   hBgoGeMult.Write();
+#endif
    thisFile->cd();
 }
 
@@ -166,7 +175,17 @@ bool Clover::AnalyseEvent()
       }
    }
    dt = -10000;
-   
+/*#if MAKE_BGO_GE_MULT   
+   for (i=0; i<4; i++) {
+      if (GeEnergy[i] > 0) {
+         for (j=0; j<2; j++) {
+            if (BgoEnergy[j] > BGO_VETO_THRESH) {
+               hBgoGeMult.Fill(j, i);
+            }
+         }
+      }
+   }
+#endif */
 ///IF ADDBACK ENABLED
    if (useAddBack) {
       if (hasGe > 2) { //Skip events with Ge mult>2      
@@ -178,10 +197,10 @@ bool Clover::AnalyseEvent()
             if (hasGe == 2) {
                dt = GeTime[i] - GeTime[(i+1)%4];
                if( GeEnergy[i] > ADDBACK_THRESH
-                && GeEnergy[(i+1)%4] > ADDBACK_THRESH) {
+               && GeEnergy[(i+1)%4] > ADDBACK_THRESH) {
                      hAddBackdt[i].Fill(dt);
                   if(ADDBACK_WINDOW_LOW < dt
-                && ADDBACK_WINDOW_HI > dt) {
+                  && ADDBACK_WINDOW_HI > dt) {
                      CloverEnergy = GeEnergy[(i+1)%4] + GeEnergy[i];
                      CloverTime = GeTime[i];
                      break;
@@ -200,11 +219,17 @@ bool Clover::AnalyseEvent()
          if (BgoEnergy[i] > BGO_VETO_THRESH) {
             dt = CloverTime - BgoTime[i];
             hGeBgodt.Fill(dt);
-            if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
-               hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
-               hGe_BgoVeto.Fill(CloverEnergy);
-               hasVeto = 1;
-               break;
+            for (j=0; j<4; j++) {
+               //This assumes that the even crystals are on the side of BGO[0] and the
+               //odd ones on the side of BGO[1]. Check this using hBgoGeMult and change
+               //in call of constructor if necessary
+               if ((j%2) == i && GeEnergy[j] > 0 && BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
+                  hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
+                  hGe_BgoVeto.Fill(CloverEnergy);
+                  hasVeto = 1;
+                  hBgoGeMult.Fill(i,j);
+                  break;
+               }
             }
          }
       }
@@ -221,15 +246,22 @@ bool Clover::AnalyseEvent()
             continue;
          CloverTime = GeTime[j];
          CloverEnergy = GeEnergy[j];
+         CloverNr = j;
          break;
       }
       for (i=0; i<2; i++) {
          if (BgoEnergy[i] > BGO_VETO_THRESH) {
             dt = CloverTime - BgoTime[i];
-            if (BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
+            //This assumes that the even crystals are on the side of BGO[0] and the
+            //odd ones on the side of BGO[1]. Check this using hBgoGeMult and change
+            //in call of constructor if necessary
+            if ((CloverNr%2) == i && CloverEnergy > 0
+                 && BGO_GE_WINDOW_LOW < dt && BGO_GE_WINDOW_HI > dt) {
                hGeBgo.Fill(CloverEnergy, BgoEnergy[i]);
                hGe_BgoVeto.Fill(CloverEnergy);
                hasVeto = 1;
+               hBgoGeMult.Fill(i, CloverNr);
+               break;
             }
          }
       }
